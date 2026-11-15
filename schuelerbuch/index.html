@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Schülerbuch">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#7b2d5b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Schülerbuch</title>
+<style>
+:root{
+  /* Layout: schmale Kopfzeile, Inhalt max. 960px, feste Tab-Leiste unten (iPad-typisch). Listen aus Zeilen mit großen Tippflächen. */
+  --bg:#f3f4f7; --surface:#ffffff; --ink:#1b2130; --muted:#5d6576; --line:#dde1e8;
+  --accent:#7b2d5b; --accent-ink:#ffffff; --accent-soft:#f5e8f0;
+  --good:#2b7a4b; --good-soft:#e3f3e9; --warn:#9a5b06; --warn-soft:#fcf1dc; --bad:#b0271d; --bad-soft:#fce8e6;
+  --font-display:ui-serif,"New York",Georgia,"Times New Roman",serif;
+  --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r:14px; --shadow:0 1px 2px rgba(20,24,40,.05),0 6px 18px rgba(20,24,40,.06);
+  --avl:88%; --avd:28%; --avs:42%;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121419; --surface:#1c1f27; --ink:#e8ebf1; --muted:#a2aaba; --line:#2d323e;
+    --accent:#e48dc0; --accent-ink:#2a0f1f; --accent-soft:#3a2332;
+    --good:#6fc892; --good-soft:#1d3527; --warn:#f0b75c; --warn-soft:#3a2d16; --bad:#ff8e84; --bad-soft:#3d1f1d;
+    --shadow:0 1px 2px rgba(0,0,0,.3); --avl:26%; --avd:86%; --avs:32%;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121419; --surface:#1c1f27; --ink:#e8ebf1; --muted:#a2aaba; --line:#2d323e;
+  --accent:#e48dc0; --accent-ink:#2a0f1f; --accent-soft:#3a2332;
+  --good:#6fc892; --good-soft:#1d3527; --warn:#f0b75c; --warn-soft:#3a2d16; --bad:#ff8e84; --bad-soft:#3d1f1d;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --avl:26%; --avd:86%; --avs:32%;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.45;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-family:var(--font-display);font-size:30px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+h3{font-size:18px}
+.ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-.18em}
+#app{min-height:100%;padding:calc(env(safe-area-inset-top) + 14px) max(16px,env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+#main{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:6px}
+.phead .eyebrow{margin:0 0 2px;color:var(--muted);font-size:15px}
+.banner{border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.banner.info{background:var(--accent-soft)}
+.banner.warn{background:var(--warn-soft);color:var(--ink)}
+.banner.bad{background:var(--bad-soft)}
+.banner p{margin:0;flex:1 1 260px}
+section.block{display:flex;flex-direction:column;gap:10px}
+.bhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.card.pad{padding:14px 16px}
+.list>*+*{border-top:1px solid var(--line)}
+.none{color:var(--muted);margin:0;padding:14px 16px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:9px 14px;min-height:42px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--accent);padding-inline:8px}
+.btn.danger{color:var(--bad);border-color:var(--line)}
+.btn.sm{min-height:36px;padding:6px 10px;font-size:15px}
+.btn:focus-visible,.act:focus-visible,.lrow:focus-visible,.srow:focus-visible,.tab:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+/* Stunden-Zeile */
+.lrow{display:grid;grid-template-columns:62px 42px 1fr auto;gap:12px;align-items:center;padding:11px 14px;cursor:pointer;min-height:64px}
+.lrow:active{background:var(--accent-soft)}
+.ltime{display:flex;flex-direction:column;font-variant-numeric:tabular-nums;line-height:1.15}
+.ltime b{font-size:17px}
+.ltime small{color:var(--muted);font-size:13px}
+.lname{font-weight:700}
+.lmain{min-width:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:13px;line-height:1;padding:5px 8px;border-radius:99px;background:var(--bg);color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.chip.acc{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.lright{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.act{border:0;border-radius:10px;padding:8px 12px;min-height:42px;display:inline-flex;gap:6px;align-items:center;font-weight:700;cursor:pointer}
+.act.ok{background:var(--good-soft);color:var(--good)}
+.act.no{background:var(--bg);color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;padding:6px 10px;border-radius:99px}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.neutral{background:var(--bg);color:var(--muted)}
+.st-abgesagt .lname{text-decoration:line-through;text-decoration-color:var(--muted)}
+.st-gehalten{background:linear-gradient(90deg,var(--good-soft) 0 4px,transparent 4px)}
+.st-abgesagt{background:linear-gradient(90deg,var(--bad-soft) 0 4px,transparent 4px)}
+/* Avatar */
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;background:hsl(var(--h) var(--avs) var(--avl));color:hsl(var(--h) 50% var(--avd));flex:none;letter-spacing:.02em}
+.av.lg{width:72px;height:72px;font-size:24px}
+img.av{object-fit:cover;display:block;background:var(--line)}
+/* Wochenplan */
+.weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.weeknav .title{font-weight:700;min-width:190px;text-align:center;font-variant-numeric:tabular-nums}
+.day{display:flex;flex-direction:column;gap:8px}
+.dhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.dhead h3 span{color:var(--muted);font-weight:400}
+.day.today .dhead h3{color:var(--accent)}
+.day.today .dhead h3::after{content:"heute";font-size:12px;font-weight:700;background:var(--accent);color:var(--accent-ink);border-radius:99px;padding:3px 8px;margin-left:8px;vertical-align:3px}
+.freebar{background:repeating-linear-gradient(135deg,var(--bg) 0 8px,var(--surface) 8px 16px);border:1px dashed var(--line);border-radius:var(--r);padding:10px 14px;color:var(--muted);font-weight:600}
+.erow{display:flex;gap:12px;align-items:center;padding:11px 14px;cursor:pointer}
+.ebadge{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.erow .meta{color:var(--muted);font-size:15px}
+/* Schülerliste */
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 13px;font-weight:600;cursor:pointer;min-height:38px}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fchip .n{opacity:.65;margin-left:4px;font-variant-numeric:tabular-nums}
+.search{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px}
+.srow{display:flex;gap:12px;align-items:center;padding:11px 14px;cursor:pointer;min-height:64px}
+.srow .grow{flex:1;min-width:0}
+.srow .sub{color:var(--muted);font-size:15px}
+.srow .end{display:flex;gap:6px;align-items:center}
+/* Detail */
+.dtop{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.dtop .grow{flex:1;min-width:200px}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin:0 -1px -1px 0}
+.facts>div{padding:12px 16px;box-shadow:inset -1px -1px 0 var(--line)}
+.facts dt{color:var(--muted);font-size:14px}
+.facts dd{margin:2px 0 0;font-weight:600}
+.punch{display:flex;gap:7px;flex-wrap:wrap;margin:6px 0}
+.punch span{width:24px;height:24px;border-radius:50%;border:2px solid var(--accent)}
+.punch span.used{background:var(--accent)}
+.punch.empty span{border-color:var(--bad)}
+.punch.empty span.used{background:var(--bad)}
+.big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.months{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;padding:14px 16px}
+.mbtn{border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:8px;min-height:54px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;font-weight:600}
+.mbtn small{font-weight:400;color:var(--muted);font-size:12px}
+.mbtn.paid{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.mbtn.paid small{color:var(--good)}
+.check{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;flex:none;background:var(--surface);cursor:pointer;padding:0}
+.check.on{background:var(--good);border-color:var(--good);color:#fff}
+.remrow{display:flex;gap:12px;align-items:center;padding:10px 14px}
+.remrow .grow{flex:1;min-width:0}
+.remrow.done .txt{text-decoration:line-through;color:var(--muted)}
+.paytable .prow{display:grid;grid-template-columns:42px 1fr auto auto;gap:12px;align-items:center;padding:10px 14px}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.sum .card{padding:14px 16px}
+.sum .lbl{color:var(--muted);font-size:14px}
+/* Tab-Leiste */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));z-index:20}
+nav.tabs .in{display:flex;max-width:960px;width:100%;justify-content:space-around}
+.tab{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:10px;min-width:0}
+.tab .ic{width:24px;height:24px}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* Sheet */
+#sheet{position:fixed;inset:0;z-index:50;display:none;background:rgba(10,12,20,.45);align-items:flex-end;justify-content:center}
+#sheet.open{display:flex}
+@media (min-width:700px){#sheet{align-items:center}}
+.panel{background:var(--surface);width:100%;max-width:640px;max-height:92%;overflow:auto;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch}
+@media (min-width:700px){.panel{border-radius:20px;max-height:88%}}
+.panel .ph{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.panel .ph .sub{color:var(--muted);font-size:15px;margin-top:2px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.field>.lbl{font-weight:700;font-size:15px}
+.field .hint{color:var(--muted);font-size:14px;margin:0}
+.inp{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px;min-height:44px}
+textarea.inp{min-height:96px;resize:vertical}
+.inp:focus{outline:2px solid var(--accent);outline-offset:0;background:var(--surface)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}
+.seg{display:flex;background:var(--bg);border-radius:12px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg label{flex:1;position:relative;min-width:84px}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:block;text-align:center;padding:9px 8px;border-radius:9px;font-weight:600;color:var(--muted)}
+.seg input:checked+span{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.seg input:focus-visible+span{outline:2px solid var(--accent)}
+.presets{display:flex;gap:6px;flex-wrap:wrap}
+.cbtn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px;font-weight:600;cursor:pointer}
+.cbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.slotrow{display:grid;grid-template-columns:1.3fr 1fr 1.2fr 1.3fr auto;gap:6px;align-items:end}
+@media (max-width:560px){.slotrow{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}}
+.slotrow .mini{font-size:13px;color:var(--muted);display:block;margin-bottom:3px}
+.cbline{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
+.cbline input{width:22px;height:22px;accent-color:var(--accent)}
+.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 12px;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:11px;padding:6px 10px}
+.foot{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:var(--surface);padding:12px 0 4px;margin-bottom:-4px;border-top:1px solid var(--line)}
+.foot .r{display:flex;gap:8px;margin-left:auto}
+details.more summary{cursor:pointer;color:var(--accent);font-weight:600;padding:4px 0}
+details.more[open] summary{margin-bottom:10px}
+.info{background:var(--bg);border-radius:11px;padding:10px 12px;font-size:15px}
+.xbtn{border:0;background:var(--bg);width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;flex:none}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:.2s;z-index:60;max-width:calc(100% - 32px)}
+#toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
+#toast button{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:5px 10px;font-weight:700;cursor:pointer}
+.settings-row{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:8px;align-items:center;padding:8px 14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:center;padding:12px 16px}
+.welcome{padding:22px;display:flex;flex-direction:column;gap:12px}
+.welcome h2{font-family:var(--font-display);text-transform:none;letter-spacing:0;font-size:24px;color:var(--ink);font-weight:600}
+.welcome p{margin:0;max-width:60ch}
+.staff{height:22px;background:repeating-linear-gradient(180deg,var(--line) 0 1px,transparent 1px 5px);opacity:.9;border-radius:2px;margin-top:4px}
+/* Jahresplan */
+.ymonth{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;padding:6px 0;border-top:1px solid var(--line)}
+.ymonth:first-child{border-top:0}
+.ymlbl{color:var(--muted);font-weight:700;font-size:14px;padding-top:9px}
+.ydays{display:flex;flex-wrap:wrap;gap:6px}
+.yday{min-width:52px;min-height:42px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:5px 8px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.yday small{font-size:10.5px;font-weight:600;color:var(--accent);max-width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.yday.sugg{border:2px dashed var(--accent)}
+.yday.struck{background:var(--bad-soft);border-color:transparent;color:var(--bad);text-decoration:line-through}
+.yday.struck small{color:var(--bad)}
+/* Bedingungen (Papier) */
+.paper{background:#fffdfb;color:#1b2130;border-radius:6px;box-shadow:var(--shadow);padding:36px 40px;max-width:760px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.ptop{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.pkicker{color:#7b2d5b;font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.ptitle{font-family:var(--font-display);font-size:32px;color:#1b2130;text-transform:none;letter-spacing:-.01em;font-weight:700}
+.psender{color:#5d6576;font-size:14px;text-align:right}
+.paper .staff{background:repeating-linear-gradient(180deg,#7b2d5b 0 1px,transparent 1px 5px);opacity:.55}
+.pfor{background:#f5e8f0;border-radius:8px;padding:10px 14px}
+.tsec h3{color:#7b2d5b;font-size:17px;margin:6px 0 6px}
+.tsec p{margin:0 0 8px;max-width:68ch}
+.trows{display:grid;grid-template-columns:1fr auto;margin:4px 0 10px;border-top:1px solid #dde1e8}
+.trows dt,.trows dd{margin:0;padding:7px 4px;border-bottom:1px solid #dde1e8}
+.trows dt{color:#5d6576}
+.trows dd{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.trows.mono dd{font-family:ui-monospace,Menlo,monospace}
+.psign{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px;color:#5d6576;font-size:13px}
+.psign span{display:block;border-bottom:1px solid #5d6576;height:34px;margin-bottom:4px}
+@media (max-width:560px){.paper{padding:22px 18px}.psign{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><main id="main" aria-live="polite"><p class="muted">Wird geladen …</p></main></div>
+<nav class="tabs" aria-label="Bereiche"><div class="in" id="tabs"></div></nav>
+<div id="sheet" role="dialog" aria-modal="true"><div class="panel" id="panel"></div></div>
+<div id="toast" role="status"><span id="toastText"></span><button id="toastBtn" hidden></button></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+<script>
+"use strict";
+/* ================= Hilfsfunktionen ================= */
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>Array.from(el.querySelectorAll(s));
+const h=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d,12)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return ymd(d)};
+const todayStr=()=>ymd(new Date());
+const wd=s=>{const g=parse(s).getDay();return g===0?7:g};
+const mondayOf=s=>addDays(s,1-wd(s));
+const daysBetween=(a,b)=>Math.round((parse(b)-parse(a))/86400000);
+const WD=["","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+const WDS=["","Mo","Di","Mi","Do","Fr","Sa","So"];
+const MON=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const MONS=["Jan.","Feb.","März","Apr.","Mai","Juni","Juli","Aug.","Sep.","Okt.","Nov.","Dez."];
+const fmtD=s=>{if(!s)return"";const d=parse(s);return `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`};
+const fmtDs=s=>{const d=parse(s);return `${d.getDate()}.${d.getMonth()+1}.`};
+const fmtDm=s=>{const d=parse(s);return `${d.getDate()}. ${MONS[d.getMonth()]}`};
+const fmtLong=s=>{const d=parse(s);return `${WD[wd(s)]}, ${d.getDate()}. ${MON[d.getMonth()]} ${d.getFullYear()}`};
+const ym=s=>s.slice(0,7);
+const fmtYM=m=>`${MON[+m.slice(5)-1]} ${m.slice(0,4)}`;
+const fmtYMs=m=>`${MONS[+m.slice(5)-1]} ${m.slice(2,4)}`;
+const addMonths=(m,n)=>{let y=+m.slice(0,4),mo=+m.slice(5)-1+n;y+=Math.floor(mo/12);mo=((mo%12)+12)%12;return `${y}-${pad(mo+1)}`};
+const euro=n=>(n===""||n==null||isNaN(n))?"–":Number(n).toLocaleString("de-DE",{minimumFractionDigits:Number(n)%1?2:0,maximumFractionDigits:2})+" €";
+function isoWeek(s){const d=parse(s);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4,12);return 1+Math.round(((d-w1)/86400000-3+((w1.getDay()+6)%7))/7)}
+const hueOf=s=>{let x=0;for(const c of String(s))x=(x*31+c.charCodeAt(0))>>>0;return x%360};
+const initials=n=>{const p=String(n||"?").replace(/^Beispiel:\s*/,"").trim().split(/\s+/);return((p[0]||"?")[0]+(p.length>1?p[p.length-1][0]:"")).toUpperCase()};
+const byName=(a,b)=>a.name.localeCompare(b.name,"de",{sensitivity:"base"});
+const num=v=>{if(v===""||v==null)return null;const n=Number(String(v).replace(",","."));return isNaN(n)?null:n};
+
+const IC={
+home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>',
+euro:'<path d="M17.5 6.6A6.5 6.5 0 1 0 17.5 17.4"/><path d="M4 10h9M4 14h9"/>',
+school:'<path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M10 21v-5h4v5"/>',
+note:'<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+sliders:'<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+x:'<path d="M6 6l12 12M18 6 6 18"/>',
+plus:'<path d="M12 5v14M5 12h14"/>',
+bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+left:'<path d="M15 5l-7 7 7 7"/>',right:'<path d="M9 5l7 7-7 7"/>',
+pen:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+save:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+upload:'<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
+text:'<path d="M5 6h14M5 11h14M5 16h9"/>',
+star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+};
+const icon=(n,c="")=>`<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||""}</svg>`;
+
+/* ================= Feiertage & Ferien (Hessen) ================= */
+function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),hh=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-hh-k)%7,m=Math.floor((a+11*hh+22*l)/451),mo=Math.floor((hh+l-7*m+114)/31),da=((hh+l-7*m+114)%31)+1;return ymd(new Date(y,mo-1,da,12))}
+const HOL={};
+function holidays(y){if(HOL[y])return HOL[y];const e=easter(y),m={};m[`${y}-01-01`]="Neujahr";m[addDays(e,-2)]="Karfreitag";m[addDays(e,1)]="Ostermontag";m[`${y}-05-01`]="Tag der Arbeit";m[addDays(e,39)]="Christi Himmelfahrt";m[addDays(e,50)]="Pfingstmontag";m[addDays(e,60)]="Fronleichnam";m[`${y}-10-03`]="Tag der Deutschen Einheit";m[`${y}-12-25`]="1. Weihnachtstag";m[`${y}-12-26`]="2. Weihnachtstag";return HOL[y]=m}
+const DEFAULT_FREE=[
+ {id:"f26o",name:"Osterferien",from:"2026-03-30",to:"2026-04-10"},
+ {id:"f26s",name:"Sommerferien",from:"2026-06-29",to:"2026-08-07"},
+ {id:"f26h",name:"Herbstferien",from:"2026-10-05",to:"2026-10-17"},
+ {id:"f26w",name:"Weihnachtsferien",from:"2026-12-23",to:"2027-01-12"},
+ {id:"f27o",name:"Osterferien",from:"2027-03-22",to:"2027-04-02"},
+ {id:"f27s",name:"Sommerferien",from:"2027-06-28",to:"2027-08-06"},
+ {id:"f27h",name:"Herbstferien",from:"2027-10-04",to:"2027-10-16"},
+ {id:"f27w",name:"Weihnachtsferien",from:"2027-12-23",to:"2028-01-11"},
+ {id:"f28o",name:"Osterferien",from:"2028-04-03",to:"2028-04-14"},
+ {id:"f28s",name:"Sommerferien",from:"2028-07-03",to:"2028-08-11"}
+];
+const DEFAULT_SETTINGS={free:DEFAULT_FREE,prices:{30:[65],45:[90,95],60:[120,125]},cardPrice:{10:380,5:210},singlePrice:45,warn:2,days:[1,2,3,4,5],yearTarget:36,struck:{},profile:{name:"",contact:"",bank:"",owner:"",iban:"",bic:""}};
+function baseFree(s){const hol=holidays(+s.slice(0,4))[s];if(hol)return hol;for(const f of D.settings.free||[])if(f.from&&f.to&&s>=f.from&&s<=f.to)return f.name||"Unterrichtsfrei";return null}
+function freeReason(s){return baseFree(s)||(D.settings.struck&&D.settings.struck[s]?"Unterrichtsfreier Tag (Jahresplan)":null)}
+
+/* ================= Speicher (nur auf diesem Gerät) ================= */
+const Store={mode:"mem",db:null,
+ async open(){
+  try{
+   if(!("indexedDB" in window))throw new Error("kein IndexedDB");
+   this.db=await new Promise((res,rej)=>{const r=indexedDB.open("schuelerbuch",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);setTimeout(()=>rej(new Error("timeout")),5000)});
+   await this.get("state");this.mode="idb";
+  }catch(e){
+   try{localStorage.setItem("__sb","1");localStorage.removeItem("__sb");this.mode="ls"}catch(e2){this.mode="mem"}
+  }
+ },
+ get(k){
+  if(this.mode==="idb"||(this.db&&this.mode==="mem"))return new Promise((res,rej)=>{try{const q=this.db.transaction("kv","readonly").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}catch(e){rej(e)}});
+  if(this.mode==="ls"){const v=localStorage.getItem("sb_"+k);return Promise.resolve(v?JSON.parse(v):undefined)}
+  return Promise.resolve(undefined);
+ },
+ set(k,v){
+  if(this.mode==="idb")return new Promise((res,rej)=>{try{const tx=this.db.transaction("kv","readwrite");tx.objectStore("kv").put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)}catch(e){rej(e)}});
+  if(this.mode==="ls"){localStorage.setItem("sb_"+k,JSON.stringify(v));return Promise.resolve()}
+  return Promise.resolve();
+ }
+};
+function emptyData(){return{v:1,students:{},lessons:{},events:{},reminders:{},settings:JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),meta:{created:todayStr(),lastBackup:null}}}
+let D=emptyData();
+let ver=0,saveTimer=null,saving=false,saveAgain=false;
+function changed(){ver++;render();clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,250)}
+async function saveNow(){
+ clearTimeout(saveTimer);
+ if(saving){saveAgain=true;return}
+ saving=true;
+ try{await Store.set("state",JSON.parse(JSON.stringify(D)));if(S.saveErr){S.saveErr=null;render()}}
+ catch(e){S.saveErr="Speichern hat nicht geklappt. Bitte sichere deine Daten und lade die App neu.";render()}
+ saving=false;
+ if(saveAgain){saveAgain=false;saveNow()}
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")saveNow()});
+window.addEventListener("pagehide",()=>saveNow());
+function normalize(d){
+ const e=emptyData();const r=Object.assign(e,d||{});
+ r.settings=Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),r.settings||{});
+ r.settings.profile=Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS.profile)),r.settings.profile||{});
+ if(!r.settings.struck||typeof r.settings.struck!=="object")r.settings.struck={};
+ for(const k of ["students","lessons","events","reminders"])if(!r[k]||typeof r[k]!=="object")r[k]={};
+ r.meta=Object.assign({created:todayStr(),lastBackup:null},r.meta||{});
+ return r;
+}
+
+/* ================= Zustand der Oberfläche ================= */
+const S={view:"home",arg:null,from:"home",week:wd(todayStr())===7?addDays(todayStr(),1):mondayOf(todayStr()),filter:"aktiv",search:"",payMonth:ym(todayStr()),showDoneRem:false,showPastEv:false,saveErr:null,ready:false,framed:false,persisted:null,planYear:null,termsFor:""};
+try{S.framed=window.self!==window.top}catch(e){S.framed=true}
+S.standalone=!!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));
+S.ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+
+/* ================= Abgeleitete Daten ================= */
+const memo={};
+function cached(key,fn){const m=memo[key];if(m&&m.v===ver)return m.val;const val=fn();memo[key]={v:ver,val};return val}
+const students=()=>cached("students",()=>Object.values(D.students).sort(byName));
+const activeStudents=()=>students().filter(s=>s.status==="aktiv");
+const VM={};
+function lessonIdx(){return cached("lidx",()=>{const byDate={},bySid={};for(const l of Object.values(D.lessons)){(byDate[l.date]=byDate[l.date]||[]).push(l);(bySid[l.sid]=bySid[l.sid]||[]).push(l)}return{byDate,bySid}})}
+function lessonsOn(d){return cached("lo"+d,()=>{
+ const idx=lessonIdx();const res=(idx.byDate[d]||[]).filter(l=>D.students[l.sid]&&(l.status!=="offen"||D.students[l.sid].status==="aktiv"));
+ if(!freeReason(d)){
+  for(const st of activeStudents()){
+   for(const sl of st.slots||[]){
+    if(+sl.wd!==wd(d)||!sl.time)continue;
+    const from=sl.from||st.start||"2000-01-01";if(d<from)continue;
+    if(sl.rh==="2"&&(daysBetween(mondayOf(from),mondayOf(d))/7)%2!==0)continue;
+    const id=`r_${st.id}_${d}_${sl.id}`;if(D.lessons[id])continue;
+    const v={id,sid:st.id,date:d,time:sl.time,dur:st.dur,kind:"regel",status:"offen",virtual:true};VM[id]=v;res.push(v);
+   }
+  }
+ }
+ return res.sort((a,b)=>(a.time||"").localeCompare(b.time||""));
+})}
+const lessonById=id=>D.lessons[id]?Object.assign({},D.lessons[id]):(VM[id]?Object.assign({},VM[id]):null);
+function cardStats(st){
+ const cards=(st.cards||[]).slice().sort((a,b)=>(a.bought||"").localeCompare(b.bought||""));
+ if(!cards.length)return{none:true,remaining:0,cards:[]};
+ const start=cards[0].bought||"2000-01-01";
+ const held=(lessonIdx().bySid[st.id]||[]).filter(l=>l.status==="gehalten"&&l.date>=start).length;
+ const pre=cards.reduce((s,c)=>s+(+c.preUsed||0),0);
+ const total=cards.reduce((s,c)=>s+(+c.size||10),0);
+ const used=held+pre;let left=used,current=null,curUsed=0;
+ for(const c of cards){const size=+c.size||10;if(left<size){current=c;curUsed=left;left=0;break}left-=size}
+ const cur=current||cards[cards.length-1];const expires=cardExpiry(cur);
+ return{cards,total,used,remaining:total-used,current,curUsed,over:current?0:left,last:cards[cards.length-1],expires};
+}
+function cardExpiry(c){if(!c||!c.bought)return null;const d=parse(c.bought);d.setFullYear(d.getFullYear()+1);return addDays(ymd(d),-1)}
+const openRem=sid=>Object.values(D.reminders).filter(r=>!r.done&&(sid===undefined||r.sid===sid)).sort((a,b)=>(a.created||"").localeCompare(b.created||""));
+function eventsOn(d){return cached("ev"+d,()=>Object.values(D.events).filter(e=>e.date===d).sort((a,b)=>(a.time||"").localeCompare(b.time||"")))}
+function nextLessons(sid,n=3){const out=[];const t=todayStr();for(let i=0;i<70&&out.length<n;i++){const d=addDays(t,i);for(const l of lessonsOn(d))if(l.sid===sid&&l.status==="offen")out.push(l)}return out.slice(0,n)}
+function pastOpen(){return cached("pastOpen",()=>{const t=todayStr(),out=[];for(let i=1;i<=42;i++){const d=addDays(t,-i);for(const l of lessonsOn(d))if(l.status==="offen")out.push(l)}return out})}
+function backupDue(){const lb=D.meta.lastBackup;if(!students().length)return false;if(!lb)return true;return daysBetween(lb,todayStr())>=7}
+const slotText=st=>(st.slots||[]).filter(s=>s.time).map(s=>`${WDS[s.wd]} ${s.time}${s.rh==="2"?" (14-tägig)":""}`).join(", ");
+const BILL={durch:"Durchzahler",zehner:"Zehnerkarte",einzeln:"Einzelstunden",ms:"Musikschule",frei:"Kostenlos"};
+const STAT={aktiv:"Aktiv",pausiert:"Pausiert",warteliste:"Warteliste",archiviert:"Archiviert"};
+
+/* ================= Bausteine ================= */
+const okPhoto=p=>typeof p==="string"&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p);
+const avatar=(st,c="")=>okPhoto(st.photo)?`<img class="av ${c}" src="${st.photo}" alt="" aria-hidden="true">`:`<div class="av ${c}" style="--h:${hueOf(st.name)}" aria-hidden="true">${h(initials(st.name))}</div>`;
+function billChip(st){
+ if(st.billing==="ms")return`<span class="chip acc">Musikschule</span>`;
+ if(st.billing==="einzeln")return`<span class="chip">Einzelstunde</span>`;
+ if(st.billing==="frei")return`<span class="chip">kostenlos</span>`;
+ if(st.billing==="zehner"){const cs=cardStats(st);if(cs.none)return`<span class="chip bad">keine Karte</span>`;const r=cs.remaining;const cls=r<=0?"bad":r<=D.settings.warn?"warn":"";const sz=+((cs.current||cs.last).size)||10;return`<span class="chip ${cls}">${sz}er · ${r<=0?(r===0?"aufgebraucht":`${-r} offen`):`noch ${r}`}</span>`}
+ return`<span class="chip">Durchzahler</span>`;
+}
+function lessonRow(l,showDate){
+ const st=D.students[l.sid];if(!st)return"";if(l.virtual)VM[l.id]=l;
+ const chips=[`<span class="chip">${h(l.dur||st.dur||"")}′</span>`,billChip(st)];
+ if(st.kind==="gruppe")chips.push(`<span class="chip acc">2er-Gruppe</span>`);
+ if(l.kind==="nachhol")chips.push(`<span class="chip acc">Nachholstunde</span>`);
+ if(l.kind==="einzel")chips.push(`<span class="chip">Einzeltermin</span>`);
+ const rc=openRem(st.id).length;if(rc)chips.push(`<span class="chip warn">${icon("bell")} ${rc}</span>`);
+ if(l.note)chips.push(`<span class="chip">${icon("text")} Notiz</span>`);
+ if(st.billing==="einzeln"&&l.status==="gehalten")chips.push(l.paid?`<span class="chip good">bezahlt</span>`:`<span class="chip warn">${euro(st.price)} offen</span>`);
+ if(l.status==="abgesagt"&&l.nachholen&&!l.nachholId)chips.push(`<span class="chip warn">nachholen</span>`);
+ const right=l.status==="offen"
+  ?`<button class="act ok" data-act="held" data-id="${h(l.id)}">${icon("check")}<span>Gehalten</span></button><button class="act no" data-act="cancel" data-id="${h(l.id)}">Absagen</button>`
+  :l.status==="gehalten"?`<span class="pill good">${icon("check")} gehalten</span>`
+  :`<span class="pill bad">abgesagt${l.by==="ich"?(l.sick?" · ich (krank)":" · ich"):l.by==="schueler"?" · Schüler":""}</span>`;
+ return`<div class="lrow st-${l.status}" data-act="lesson" data-id="${h(l.id)}" role="button" tabindex="0">
+  <div class="ltime">${showDate?`<small>${WDS[wd(l.date)]} ${fmtDs(l.date)}</small>`:""}<b>${h(l.time||"–")}</b></div>
+  ${avatar(st)}<div class="lmain"><div class="lname">${h(st.name)}</div><div class="chips">${chips.join("")}</div></div>
+  <div class="lright">${right}</div></div>`;
+}
+const EVT={konzert:"Konzert",probe:"Probe",vorspiel:"Vorspiel",musikschule:"Musikschule",sonstiges:"Termin"};
+function eventRow(e,showDate=true){
+ const n=(e.sids||[]).filter(id=>D.students[id]).length;
+ return`<div class="erow" data-act="event" data-id="${h(e.id)}" role="button" tabindex="0">
+  <div class="ebadge">${icon(e.type==="musikschule"?"school":e.type==="probe"?"note":"star")}</div>
+  <div style="flex:1;min-width:0"><div class="lname">${h(e.title||EVT[e.type])}</div>
+  <div class="meta">${EVT[e.type]||"Termin"}${showDate?` · ${WDS[wd(e.date)]} ${fmtD(e.date)}`:""}${e.time?` · ${h(e.time)} Uhr`:""}${e.place?` · ${h(e.place)}`:""}${n?` · ${n} Schüler`:""}</div></div></div>`;
+}
+const block=(title,body,action="")=>`<section class="block"><div class="bhead"><h2>${title}</h2>${action}</div>${body}</section>`;
+
+/* ================= Ansichten ================= */
+const VIEWS={};
+VIEWS.home=()=>{
+ const t=todayStr(),free=freeReason(t),L=lessonsOn(t);const hr=new Date().getHours();
+ let out=`<header class="phead"><div><p class="eyebrow">${fmtLong(t)}</p><h1>${hr<11?"Guten Morgen":hr<18?"Hallo":"Guten Abend"}</h1><div class="staff" aria-hidden="true"></div></div>
+  <div class="row-btns"><button class="btn" data-act="addRem">${icon("bell")} Erinnerung</button><button class="btn primary" data-act="addAppt" data-date="${t}">${icon("plus")} Termin</button></div></header>`;
+ out+=topBanners();
+ if(!students().length){
+  out+=`<div class="card welcome"><h2>Willkommen in deinem Schülerbuch</h2><p>Lege deinen ersten Schüler an. Wenn du erst einmal ausprobieren möchtest, lade Beispielschüler: Sie sind mit „Beispiel:“ markiert und lassen sich in den Einstellungen mit einem Tipp wieder entfernen.</p>
+  <div class="row-btns"><button class="btn primary" data-act="newStudent">${icon("plus")} Ersten Schüler anlegen</button><button class="btn" data-act="sample">Mit Beispielschülern ausprobieren</button></div></div>`;
+  return out;
+ }
+ out+=block("Heute",`<div class="card list">${free?`<p class="none">Unterrichtsfrei: <b>${h(free)}</b></p>`:""}${L.map(l=>lessonRow(l)).join("")||(!free?`<p class="none">Heute stehen keine Stunden im Plan.</p>`:"")}</div>`);
+ // Zu erledigen
+ const todo=[];
+ const po=pastOpen();
+ if(po.length)todo.push(`<div class="card list"><div class="none" style="padding-bottom:6px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><span><b>Noch nicht abgehakt</b> – haben diese Stunden stattgefunden?</span>${po.length>1?`<button class="btn sm" data-act="allHeld">${icon("check")} Alle ${po.length} als gehalten</button>`:""}</div>${po.slice(0,8).map(l=>lessonRow(l,true)).join("")}${po.length>8?`<p class="none">… und ${po.length-8} weitere im <button class="btn ghost sm" data-act="nav" data-view="plan">Stundenplan</button></p>`:""}</div>`);
+ const low=activeStudents().filter(s=>s.billing==="zehner").map(s=>[s,cardStats(s)]).filter(([s,c])=>c.none||c.remaining<=D.settings.warn);
+ if(low.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Zehnerkarten</b> – bald neue Karte nötig</p>${low.map(([s,c])=>`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${c.none?"Noch keine Karte angelegt":c.remaining<=0?(c.remaining===0?"Karte aufgebraucht":`${-c.remaining} Stunde(n) ohne Karte`):`Noch ${c.remaining} Stunde${c.remaining===1?"":"n"} auf der Karte`}</div></div>${icon("right")}</div>`).join("")}</div>`);
+ const exp=activeStudents().filter(s=>s.billing==="zehner").map(s=>[s,cardStats(s)]).filter(([s,c])=>!c.none&&c.remaining>0&&c.expires&&daysBetween(t,c.expires)<=30);
+ if(exp.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Karten laufen ab</b> – gültig ein Jahr ab Kaufdatum</p>${exp.map(([s,c])=>`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${c.expires<t?"Abgelaufen am":"Gültig bis"} ${fmtD(c.expires)} · noch ${c.remaining} Stunde${c.remaining===1?"":"n"}</div></div>${icon("right")}</div>`).join("")}</div>`);
+ const pe=students().filter(s=>s.status==="pausiert"&&s.pauseUntil&&s.pauseUntil<=addDays(t,7));
+ if(pe.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Pause endet</b> – wieder in den Stundenplan aufnehmen?</p>${pe.map(s=>`<div class="srow">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">Pausiert bis ${fmtD(s.pauseUntil)}</div></div><button class="btn sm" data-act="reactivate" data-id="${h(s.id)}">${icon("check")} Wieder aktiv</button></div>`).join("")}</div>`);
+ const nh=Object.values(D.lessons).filter(l=>l.status==="abgesagt"&&l.nachholen&&!l.nachholId&&D.students[l.sid]).sort((a,b)=>a.date.localeCompare(b.date));
+ if(nh.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Nachholen</b> – Termin fehlt noch</p>${nh.map(l=>lessonRow(l,true)).join("")}</div>`);
+ const m=ym(t);const unpaid=activeStudents().filter(s=>s.billing==="durch"&&!(s.paid||{})[m]);
+ const unpaidCards=activeStudents().flatMap(s=>(s.cards||[]).filter(c=>!c.paid).map(c=>[s,c]));
+ const unpaidSingle=Object.values(D.lessons).filter(l=>l.status==="gehalten"&&!l.paid&&D.students[l.sid]&&D.students[l.sid].billing==="einzeln");
+ if(unpaid.length||unpaidCards.length||unpaidSingle.length)todo.push(`<div class="card pad" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><b>Zahlungen ${MON[+m.slice(5)-1]}</b><div class="muted">${unpaid.length?`${unpaid.length} Durchzahler noch offen`:"Alle Durchzahler bezahlt"}${unpaidCards.length?` · ${unpaidCards.length} Karte(n) unbezahlt`:""}${unpaidSingle.length?` · ${unpaidSingle.length} Einzelstunde(n) offen`:""}</div></div><button class="btn" data-act="nav" data-view="pay">Ansehen ${icon("right")}</button></div>`);
+ if(todo.length)out+=block("Zu erledigen",todo.join(""));
+ // Erinnerungen
+ const rem=openRem();
+ out+=block("Erinnerungen",`<div class="card list">${rem.length?rem.map(remRow).join(""):`<p class="none">Keine offenen Erinnerungen.</p>`}</div>`,`<button class="btn ghost sm" data-act="addRem">${icon("plus")} Neu</button>`);
+ // Termine
+ const ev=Object.values(D.events).filter(e=>e.date>=t&&e.date<=addDays(t,45)).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
+ if(ev.length)out+=block("Nächste Konzerte & Termine",`<div class="card list">${ev.map(e=>eventRow(e)).join("")}</div>`);
+ const wl=students().filter(s=>s.status==="warteliste").length;
+ if(wl)out+=`<div class="card pad" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><b>Warteliste</b><div class="muted">${wl} ${wl===1?"Person wartet":"Personen warten"} auf einen Platz</div></div><button class="btn" data-act="filterGo" data-f="warteliste">Ansehen ${icon("right")}</button></div>`;
+ return out;
+};
+function topBanners(){
+ let o="";
+ if(S.saveErr)o+=`<div class="banner bad"><p>${h(S.saveErr)}</p></div>`;
+ if(S.framed)o+=`<div class="banner info"><p><b>Vorschau.</b> Hier kannst du alles ausprobieren. Für deine echten Schüler richten wir die App anschließend fest auf deinem iPad ein.</p></div>`;
+ else if(Store.mode==="mem")o+=`<div class="banner bad"><p><b>Achtung:</b> Hier kann nichts dauerhaft gespeichert werden. Bitte die App über das Symbol auf dem Home-Bildschirm öffnen.</p></div>`;
+ else if(!S.standalone&&S.ios)o+=`<div class="banner bad"><p><b>Bitte nur über das Symbol auf dem Home-Bildschirm benutzen.</b> Safari und das Symbol haben getrennte Speicher – was du hier in Safari einträgst, siehst du dort nicht. So legst du das Symbol an: oben auf <b>Teilen</b> tippen, dann <b>„Zum Home-Bildschirm“</b>.</p></div>`;
+ if(backupDue()&&!S.framed)o+=`<div class="banner warn"><p><b>Zeit für eine Sicherung.</b> ${D.meta.lastBackup?`Letzte Sicherung am ${fmtD(D.meta.lastBackup)}.`:"Du hast noch nie gesichert."} Tippe auf „Jetzt sichern“ und schicke die Datei per AirDrop an deinen Mac.</p><button class="btn primary" data-act="backup">${icon("save")} Jetzt sichern</button></div>`;
+ return o;
+}
+function remRow(r){
+ const st=r.sid?D.students[r.sid]:null;
+ return`<div class="remrow ${r.done?"done":""}"><button class="check ${r.done?"on":""}" data-act="remToggle" data-id="${h(r.id)}" aria-label="${r.done?"Wieder öffnen":"Erledigt"}">${r.done?icon("check"):""}</button>
+  <div class="grow"><div class="txt">${h(r.text)}</div>${st?`<div class="muted" style="font-size:14px">${h(st.name)}${nextLessons(st.id,1)[0]?` · nächste Stunde ${WDS[wd(nextLessons(st.id,1)[0].date)]} ${fmtDs(nextLessons(st.id,1)[0].date)}`:""}</div>`:""}</div>
+  <button class="xbtn" data-act="remDel" data-id="${h(r.id)}" aria-label="Erinnerung löschen">${icon("x")}</button></div>`;
+}
+VIEWS.plan=()=>{
+ const w=S.week,t=todayStr();const days=[...Array(7)].map((_,i)=>addDays(w,i));
+ const show=days;
+ const all=days.flatMap(d=>lessonsOn(d));const held=all.filter(l=>l.status==="gehalten").length,canc=all.filter(l=>l.status==="abgesagt").length;
+ let out=`<header class="phead"><div><p class="eyebrow">Kalenderwoche ${isoWeek(w)}</p><h1>Stundenplan</h1></div>
+  <div class="weeknav"><button class="btn" data-act="weekPrev" aria-label="Vorige Woche">${icon("left")}</button><span class="title">${fmtDm(w)} – ${fmtDm(addDays(w,6))}</span><button class="btn" data-act="weekNext" aria-label="Nächste Woche">${icon("right")}</button>${w!==mondayOf(t)?`<button class="btn" data-act="weekToday">Diese Woche</button>`:""}</div></header>`;
+ out+=topBanners();
+ out+=`<p class="muted" style="margin:-8px 0 0">${all.length} Stunden in dieser Woche${held?` · ${held} gehalten`:""}${canc?` · ${canc} abgesagt`:""}</p>`;
+ for(const d of show){
+  const free=freeReason(d),L=lessonsOn(d),E=eventsOn(d);const teach=D.settings.days.includes(wd(d));
+  if(!teach&&!L.length&&!E.length){out+=`<section class="day ${d===t?"today":""}"><div class="dhead"><h3>${WD[wd(d)]} <span>${fmtDm(d)}</span> <small class="muted" style="font-weight:400;font-size:14px">· kein Unterricht</small></h3><button class="btn ghost sm" data-act="newEvent" data-type="probe" data-date="${d}">${icon("plus")} Probe/Konzert</button></div></section>`;continue}
+  out+=`<section class="day ${d===t?"today":""}"><div class="dhead"><h3>${WD[wd(d)]} <span>${fmtDm(d)}</span></h3>${teach?`<button class="btn ghost sm" data-act="addAppt" data-date="${d}">${icon("plus")} Termin</button>`:`<button class="btn ghost sm" data-act="newEvent" data-type="probe" data-date="${d}">${icon("plus")} Probe/Konzert</button>`}</div>
+   ${free?`<div class="freebar">${h(free)} – unterrichtsfrei</div>`:""}
+   ${(E.length||L.length)?`<div class="card list">${E.map(e=>eventRow(e,false)).join("")}${L.map(l=>lessonRow(l)).join("")}</div>`:(free?"":`<div class="card"><p class="none">Keine Stunden</p></div>`)}</section>`;
+ }
+ return out;
+};
+VIEWS.students=()=>{
+ const all=students();const cnt=f=>f==="alle"?all.length:f==="ms"?all.filter(s=>s.billing==="ms"&&s.status==="aktiv").length:all.filter(s=>s.status===f).length;
+ const F=[["aktiv","Aktiv"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiv"],["ms","Musikschule"],["alle","Alle"]];
+ return`<header class="phead"><div><p class="eyebrow">${cnt("aktiv")} aktive Schüler</p><h1>Schüler</h1></div><button class="btn primary" data-act="newStudent">${icon("plus")} Neuer Schüler</button></header>
+ ${topBanners()}
+ <div class="filters" role="group" aria-label="Filter">${F.map(([k,l])=>`<button class="fchip" data-act="filter" data-f="${k}" aria-pressed="${S.filter===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("")}</div>
+ <input class="search" id="search" type="search" placeholder="Name suchen …" value="${h(S.search)}" autocomplete="off" aria-label="Name suchen">
+ <div id="slist">${studentList()}</div>`;
+};
+function studentList(){
+ const q=S.search.trim().toLowerCase();
+ let L=students().filter(s=>S.filter==="alle"?true:S.filter==="ms"?(s.billing==="ms"&&s.status==="aktiv"):s.status===S.filter);
+ if(q){const hit=s=>(s.name+" "+(s.members||[]).join(" ")).toLowerCase().includes(q);const act=L.filter(hit);const rest=students().filter(s=>hit(s)&&!act.includes(s));
+  if(!act.length&&!rest.length)return`<div class="card"><p class="none">Niemand gefunden.</p></div>`;
+  return (act.length?studentRows(act):"")+(rest.length?`<h2 style="margin:14px 0 8px">In anderen Listen gefunden</h2>${studentRows(rest)}`:"")}
+ if(S.filter==="warteliste"&&!q)L.sort((a,b)=>(a.waitSince||"").localeCompare(b.waitSince||""));
+ if(!L.length)return`<div class="card"><p class="none">${q?"Niemand gefunden.":S.filter==="warteliste"?"Die Warteliste ist leer.":S.filter==="pausiert"?"Gerade pausiert niemand.":S.filter==="archiviert"?"Im Archiv ist noch niemand.":"Noch keine Schüler in dieser Liste."}</p></div>`;
+ return studentRows(L);
+}
+function studentRows(L){
+ return`<div class="card list">${L.map(s=>{
+  let sub;
+  if(s.status==="warteliste")sub=`Wartet seit ${s.waitSince?fmtD(s.waitSince):"–"}${s.waitWish?` · ${h(s.waitWish)}`:""}`;
+  else if(s.status==="archiviert")sub=`Archiviert${s.archivedAt?` seit ${fmtD(s.archivedAt)}`:""}`;
+  else if(s.status==="pausiert")sub=`Pausiert${s.pauseUntil?` bis ${fmtD(s.pauseUntil)}`:""}${s.pauseNote?` · ${h(s.pauseNote)}`:""}`;
+  else sub=[s.kind==="gruppe"?"2er-Gruppe":"",slotText(s)||"kein fester Termin",`${s.dur}′`,s.billing==="durch"&&s.price!=null?`${euro(s.price)}/Monat`:s.billing==="einzeln"&&s.price!=null?`${euro(s.price)}/Stunde`:""].filter(Boolean).join(" · ");
+  return`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${sub}</div></div><div class="end">${s.status==="aktiv"?billChip(s):`<span class="chip">${STAT[s.status]}</span>`}${icon("right")}</div></div>`;
+ }).join("")}</div>`;
+}
+VIEWS.student=()=>{
+ const st=D.students[S.arg];if(!st){S.view="students";return VIEWS.students()}
+ const t=todayStr();const nx=nextLessons(st.id,3);
+ let out=`<div><button class="btn ghost" data-act="back">${icon("left")} Zurück</button></div>
+ <div class="dtop">${avatar(st,"lg")}<div class="grow"><h1>${h(st.name)}</h1><div class="chips" style="margin-top:6px"><span class="chip ${st.status==="aktiv"?"good":st.status==="warteliste"||st.status==="pausiert"?"warn":""}">${STAT[st.status]}</span>${st.status==="aktiv"?billChip(st):""}<span class="chip">${st.dur}′</span></div></div>
+ <div class="row-btns">${st.status==="pausiert"?`<button class="btn primary" data-act="reactivate" data-id="${h(st.id)}">${icon("check")} Wieder aktiv</button>`:""}${st.status==="warteliste"?`<button class="btn primary" data-act="takeIn" data-id="${h(st.id)}">${icon("check")} Aufnehmen</button>`:""}<button class="btn" data-act="editStudent" data-id="${h(st.id)}">${icon("pen")} Bearbeiten</button></div></div>`;
+ const facts=[];if(st.kind==="gruppe")facts.push(["Zweiergruppe",(st.members||[]).join(" & ")||"–"]);facts.push(["Abrechnung",BILL[st.billing]],["Stundenlänge",`${st.dur} Minuten`]);
+ if(st.billing==="durch")facts.push(["Monatsbetrag",st.price!=null?euro(st.price):"noch nicht eingetragen"]);
+ if(st.billing==="einzeln")facts.push(["Preis pro Stunde",st.price!=null?euro(st.price):"noch nicht eingetragen"]);
+ facts.push(["Fester Termin",slotText(st)||"keiner"]);
+ if(st.status==="aktiv")facts.push(["Nächste Stunde",nx[0]?`${WDS[wd(nx[0].date)]} ${fmtD(nx[0].date)}, ${nx[0].time} Uhr`:"keine geplant"]);
+ if(st.start)facts.push(["Unterricht seit",fmtD(st.start)]);
+ if(st.status==="warteliste")facts.push(["Wartet seit",st.waitSince?fmtD(st.waitSince):"–"],["Wunsch",st.waitWish||"–"]);
+ if(st.status==="archiviert"&&st.archivedAt)facts.push(["Archiviert seit",fmtD(st.archivedAt)]);
+ if(st.status==="pausiert")facts.push(["Pausiert bis",st.pauseUntil?fmtD(st.pauseUntil):"offen"]),st.pauseNote&&facts.push(["Grund",st.pauseNote]);
+ out+=`<div class="card"><dl class="facts" style="margin:0">${facts.map(([k,v])=>`<div><dt>${k}</dt><dd>${h(v)}</dd></div>`).join("")}</dl></div>`;
+ if(st.notes)out+=block("Notizen",`<div class="card pad" style="white-space:pre-wrap">${h(st.notes)}</div>`);
+ // Zehnerkarte
+ if(st.billing==="zehner"||(st.cards||[]).length){
+  const cs=cardStats(st);let body="";
+  if(cs.none)body=`<p class="none">Noch keine Karte angelegt. Lege die aktuelle Karte an. Wenn sie schon angefangen ist, trägst du einfach ein, wie viele Stunden bereits verbraucht sind.</p>`;
+  else{
+   const c=cs.current||cs.last;const size=+c.size||10;const used=cs.current?cs.curUsed:size;
+   body=`<div class="pad" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><div><span class="big">${cs.remaining>0?cs.remaining:0}</span> <span class="muted">${cs.remaining===1?"Stunde":"Stunden"} übrig</span></div><div class="muted">${cs.current?`Aktuelle Karte seit ${fmtD(c.bought)} · gültig bis ${fmtD(cs.expires)}`:"Alle Karten aufgebraucht"}${cs.over?` · ${cs.over} Stunde(n) ohne Karte`:""}</div></div>
+    <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>`<span class="${i<used?"used":""}"></span>`).join("")}</div>
+    <p class="muted" style="margin:4px 0 0;font-size:14px">Abgesagte Stunden werden nie abgezogen, nur gehaltene.</p></div>
+    <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}${+c.preUsed?` · übernommen mit ${c.preUsed} verbrauchten Stunden`:""}</div></div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
+  }
+  out+=block("Zehnerkarte",`<div class="card">${body}</div>`,`<button class="btn ghost sm" data-act="newCard" data-sid="${h(st.id)}">${icon("plus")} Neue Karte</button>`);
+ }
+ // Zahlungen Durchzahler
+ if(st.billing==="durch"){
+  const cur=ym(t);const start=st.start?ym(st.start):cur;let ms=[];for(let i=0;i<12;i++){const m=addMonths(cur,-i);if(m<start&&i>0)break;ms.push(m)}ms.reverse();
+  out+=block("Zahlungen",`<div class="card"><div class="months">${ms.map(m=>{const p=(st.paid||{})[m];return`<button class="mbtn ${p?"paid":""}" data-act="monthPaid" data-sid="${h(st.id)}" data-m="${m}" aria-pressed="${!!p}">${fmtYMs(m)}<small>${p?"bezahlt":"offen"}</small></button>`}).join("")}</div></div>`);
+ }
+ // Erinnerungen
+ const rs=Object.values(D.reminders).filter(r=>r.sid===st.id).sort((a,b)=>(a.done-b.done)||(a.created||"").localeCompare(b.created||""));
+ out+=block("Erinnerungen fürs nächste Mal",`<div class="card list">${rs.length?rs.map(remRow).join(""):`<p class="none">Nichts vorgemerkt.</p>`}</div>`,`<button class="btn ghost sm" data-act="addRem" data-sid="${h(st.id)}">${icon("plus")} Neu</button>`);
+ // Stunden
+ const hist=(lessonIdx().bySid[st.id]||[]).filter(l=>l.date<=t&&l.status!=="offen").sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+ out+=block("Nächste Stunden",`<div class="card list">${nx.length?nx.map(l=>lessonRow(l,true)).join(""):`<p class="none">Für die nächsten Wochen ist keine Stunde geplant.</p>`}</div>`,`<button class="btn ghost sm" data-act="addAppt" data-date="${t}" data-sid="${h(st.id)}">${icon("plus")} Einzeltermin</button>`);
+ out+=block(`Unterrichtstagebuch <span style="text-transform:none;letter-spacing:0;font-weight:400">(${hist.filter(l=>l.status==="gehalten").length} Stunden gehalten)</span>`,`<div class="card list">${hist.length?hist.slice(0,S.histAll?999:15).map(l=>`<div class="srow" data-act="lesson" data-id="${h(l.id)}" role="button" tabindex="0" style="align-items:flex-start"><div class="ltime" style="width:62px"><small>${WDS[wd(l.date)]}</small><b>${fmtDs(l.date)}</b></div><div class="grow"><div>${l.status==="gehalten"?`<span class="pill good">${icon("check")} gehalten</span>`:`<span class="pill bad">abgesagt${l.by==="ich"?" · ich":l.by==="schueler"?" · Schüler":""}</span>`}${l.kind==="nachhol"?` <span class="chip acc">Nachholstunde</span>`:""}</div>${l.note?`<div style="white-space:pre-wrap;margin-top:6px">${h(l.note)}</div>`:""}</div></div>`).join("")+(hist.length>15&&!S.histAll?`<p class="none"><button class="btn ghost sm" data-act="histAll">Alle ${hist.length} anzeigen</button></p>`:""):`<p class="none">Hier erscheinen alle vergangenen Stunden mit deinen Notizen, sobald du sie als gehalten oder abgesagt markiert hast.</p>`}</div>`);
+ return out;
+};
+VIEWS.pay=()=>{
+ const m=S.payMonth;const durch=students().filter(s=>s.billing==="durch"&&(s.status==="aktiv"||(s.paid||{})[m]));
+ const exp=durch.filter(s=>s.status==="aktiv").reduce((a,s)=>a+(+s.price||0),0);const got=durch.filter(s=>(s.paid||{})[m]).reduce((a,s)=>a+(+s.price||0),0);
+ const cards=students().flatMap(s=>(s.cards||[]).map(c=>[s,c])).filter(([s,c])=>!c.paid||ym(c.bought||"")===m).sort((a,b)=>(a[1].bought||"").localeCompare(b[1].bought||""));
+ const cardGot=cards.filter(([s,c])=>c.paid&&ym(c.bought||"")===m).reduce((a,[s,c])=>a+(+c.price||0),0);
+ const singles=Object.values(D.lessons).filter(l=>l.status==="gehalten"&&D.students[l.sid]&&D.students[l.sid].billing==="einzeln"&&(ym(l.date)===m||(!l.paid&&ym(l.date)<m))).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const singleGot=singles.filter(l=>l.paid&&ym(l.date)===m).reduce((a,l)=>a+(+D.students[l.sid].price||0),0);
+ return`<header class="phead"><div><p class="eyebrow">Bezahlt abhaken</p><h1>Zahlungen</h1></div>
+ <div class="weeknav"><button class="btn" data-act="payPrev" aria-label="Voriger Monat">${icon("left")}</button><span class="title">${fmtYM(m)}</span><button class="btn" data-act="payNext" aria-label="Nächster Monat">${icon("right")}</button></div></header>
+ ${topBanners()}
+ <div class="sum"><div class="card"><div class="lbl">Durchzahler erwartet</div><div class="big">${euro(exp)}</div></div><div class="card"><div class="lbl">Durchzahler eingegangen</div><div class="big" style="color:var(--good)">${euro(got)}</div></div><div class="card"><div class="lbl">Karten bezahlt (${MONS[+m.slice(5)-1]})</div><div class="big">${euro(cardGot)}</div></div><div class="card"><div class="lbl">Einzelstunden bezahlt (${MONS[+m.slice(5)-1]})</div><div class="big">${euro(singleGot)}</div></div></div>
+ ${block(`Durchzahler · ${durch.filter(s=>!(s.paid||{})[m]).length} offen`,`<div class="card list paytable">${durch.length?durch.map(s=>{const p=(s.paid||{})[m];return`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">${s.dur}′</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(s.price)}</div><button class="check ${p?"on":""}" data-act="monthPaid" data-sid="${h(s.id)}" data-m="${m}" aria-label="${h(s.name)} bezahlt">${p?icon("check"):""}</button></div>`}).join(""):`<p class="none">Keine Durchzahler.</p>`}</div>`)}
+ ${singles.length?block(`Einzelstunden · ${singles.filter(l=>!l.paid).length} offen`,`<div class="card list paytable">${singles.map(l=>{const s=D.students[l.sid];return`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">Stunde am ${WDS[wd(l.date)]} ${fmtD(l.date)}</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(s.price)}</div><button class="check ${l.paid?"on":""}" data-act="lessonPaid" data-id="${h(l.id)}" aria-label="Stunde bezahlt">${l.paid?icon("check"):""}</button></div>`}).join("")}</div>`):""}
+ ${block("Zehner- und Fünferkarten",`<div class="card list paytable">${cards.length?cards.map(([s,c])=>`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">${c.size||10}er-Karte vom ${fmtD(c.bought)}</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(c.price)}</div><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(s.id)}" data-cid="${h(c.id)}" aria-label="Karte bezahlt">${c.paid?icon("check"):""}</button></div>`).join(""):`<p class="none">Keine offenen Karten und keine Käufe in diesem Monat.</p>`}</div>`)}
+ <p class="muted" style="margin:0;font-size:15px">Musikschul-Schüler erscheinen hier nicht, weil die Musikschule mit ihnen abrechnet.</p>`;
+};
+VIEWS.ms=()=>{
+ const t=todayStr(),w=mondayOf(t);const ms=students().filter(s=>s.billing==="ms"&&s.status==="aktiv");
+ const week=[...Array(7)].map((_,i)=>addDays(w,i)).flatMap(d=>lessonsOn(d)).filter(l=>D.students[l.sid]&&D.students[l.sid].billing==="ms");
+ const ev=Object.values(D.events).filter(e=>e.type==="musikschule").sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
+ const up=ev.filter(e=>e.date>=t),past=ev.filter(e=>e.date<t).reverse();
+ return`<header class="phead"><div><p class="eyebrow">${ms.length} Schüler über die Musikschule</p><h1>Musikschule</h1></div><button class="btn primary" data-act="newEvent" data-type="musikschule">${icon("plus")} Veranstaltung</button></header>
+ ${topBanners()}
+ ${block("Veranstaltungen der Musikschule",`<div class="card list">${up.length?up.map(e=>eventRow(e)).join(""):`<p class="none">Keine kommenden Veranstaltungen eingetragen.</p>`}</div>${past.length?`<details class="more"><summary>Vergangene (${past.length})</summary><div class="card list">${past.map(e=>eventRow(e)).join("")}</div></details>`:""}`)}
+ ${block("Diese Woche",`<div class="card list">${week.length?week.map(l=>lessonRow(l,true)).join(""):`<p class="none">Diese Woche keine Musikschul-Stunden.</p>`}</div>`)}
+ ${block("Schüler",`<div class="card list">${ms.length?ms.map(s=>`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${slotText(s)||"kein fester Termin"} · ${s.dur}′</div></div>${icon("right")}</div>`).join(""):`<p class="none">Noch niemand. Beim Schüler unter „Abrechnung“ die Option „Musikschule“ wählen.</p>`}</div>`)}`;
+};
+VIEWS.events=()=>{
+ const t=todayStr();const ev=Object.values(D.events).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
+ const up=ev.filter(e=>e.date>=t),past=ev.filter(e=>e.date<t).reverse();
+ return`<header class="phead"><div><p class="eyebrow">Konzerte, Proben, Vorspiele und andere Termine</p><h1>Konzerte & Proben</h1></div><button class="btn primary" data-act="newEvent" data-type="konzert">${icon("plus")} Neuer Termin</button></header>
+ ${topBanners()}
+ ${block("Kommend",`<div class="card list">${up.length?up.map(e=>eventRow(e)).join(""):`<p class="none">Noch nichts geplant.</p>`}</div>`)}
+ ${past.length?block("Vergangen",`<div class="card list">${past.slice(0,S.showPastEv?999:5).map(e=>eventRow(e)).join("")}${past.length>5&&!S.showPastEv?`<p class="none"><button class="btn ghost sm" data-act="pastEv">Alle ${past.length} anzeigen</button></p>`:""}</div>`):""}`;
+};
+VIEWS.settings=()=>{
+ const st=D.settings;const free=(st.free||[]).slice().sort((a,b)=>(a.from||"").localeCompare(b.from||""));
+ const hasSample=Object.values(D.students).some(s=>s.example);const hasReal=Object.values(D.students).some(s=>!s.example);
+ return`<div><button class="btn ghost" data-act="nav" data-view="more">${icon("left")} Mehr</button></div>
+ <header class="phead"><div><p class="eyebrow">Ferien, Preise, Sicherung</p><h1>Einstellungen</h1></div></header>
+ ${topBanners()}
+ ${block("Datensicherung",`<div class="card pad" style="display:flex;flex-direction:column;gap:12px">
+   <p style="margin:0">${icon("lock")} Alle Daten liegen <b>nur auf diesem iPad</b>. Nichts wird ins Internet geschickt. Deshalb ist die Sicherung wichtig: Tippe auf „Jetzt sichern“, wähle <b>AirDrop</b> und deinen Mac. Die Datei landet dann im Download-Ordner.</p>
+   <p class="muted" style="margin:0">Letzte Sicherung: <b>${D.meta.lastBackup?fmtD(D.meta.lastBackup):"noch nie"}</b>${S.persisted===true?" · Speicher ist vor automatischem Löschen geschützt":""}</p>
+   <div class="row-btns"><button class="btn primary" data-act="backup">${icon("save")} Jetzt sichern</button><button class="btn" data-act="import">${icon("upload")} Sicherung einspielen</button></div></div>`)}
+ ${block("Deine Angaben für die Bedingungen",`<div class="card"><div class="kv">
+  <label for="pf_n">Name / Absender</label><input class="inp" id="pf_n" data-prof="name" value="${h(st.profile.name)}" placeholder="z. B. Gesangsunterricht Sabine …">
+  <label for="pf_c">Kontakt</label><textarea class="inp" id="pf_c" data-prof="contact" placeholder="Adresse, Telefon, E-Mail (freiwillig)" style="min-height:70px">${h(st.profile.contact)}</textarea>
+  <label for="pf_o">Kontoinhaber</label><input class="inp" id="pf_o" data-prof="owner" value="${h(st.profile.owner)}">
+  <label for="pf_b">Bank</label><input class="inp" id="pf_b" data-prof="bank" value="${h(st.profile.bank)}" placeholder="z. B. Sparkasse Dieburg">
+  <label for="pf_i">IBAN</label><input class="inp" id="pf_i" data-prof="iban" value="${h(st.profile.iban)}" autocomplete="off" style="font-family:ui-monospace,Menlo,monospace">
+  <label for="pf_x">BIC</label><input class="inp" id="pf_x" data-prof="bic" value="${h(st.profile.bic)}" autocomplete="off" style="font-family:ui-monospace,Menlo,monospace">
+ </div><p class="muted" style="margin:0 16px 14px;font-size:15px">${icon("lock")} Diese Angaben bleiben nur auf diesem iPad und erscheinen in den Unterrichtsbedingungen.</p></div>`)}
+ ${block("Unterrichtsfreie Zeiten",`<div class="card list">${free.map(f=>`<div class="settings-row"><input class="inp" data-free="${h(f.id)}" data-field="name" value="${h(f.name)}" aria-label="Bezeichnung"><input class="inp" type="date" data-free="${h(f.id)}" data-field="from" value="${h(f.from)}" aria-label="Von"><input class="inp" type="date" data-free="${h(f.id)}" data-field="to" value="${h(f.to)}" aria-label="Bis"><button class="xbtn" data-act="freeDel" data-id="${h(f.id)}" aria-label="Entfernen">${icon("x")}</button></div>`).join("")}</div>
+  <p class="muted" style="margin:0;font-size:15px">Eingetragen sind die hessischen Schulferien bis zu den Sommerferien 2028. Bitte einmal mit dem Ferienplan vergleichen. Gesetzliche Feiertage in Hessen erkennt die App selbst. Hier kannst du auch eigenen Urlaub oder bewegliche Ferientage eintragen.</p>`,`<button class="btn ghost sm" data-act="freeAdd">${icon("plus")} Hinzufügen</button>`)}
+ ${block("Preise",`<div class="card"><div class="kv">${[30,45,60].map(d=>`<label for="pr${d}">Durchzahler ${d} Min. (Monat)</label><input class="inp" id="pr${d}" data-price="${d}" value="${h((st.prices[d]||[]).join(", "))}" placeholder="z. B. 90, 95">`).join("")}${[10,5].map(d=>`<label for="cp${d}">${d}er-Karte (45 Min.)</label><input class="inp" id="cp${d}" data-cardprice="${d}" inputmode="decimal" value="${h(st.cardPrice[d]==null?"":st.cardPrice[d])}" placeholder="Preis der Karte">`).join("")}<label for="sp">Einzelstunde (45 Min.)</label><input class="inp" id="sp" data-singleprice inputmode="decimal" value="${h(st.singlePrice==null?"":st.singlePrice)}" placeholder="Preis pro Stunde"></div>
+  <p class="muted" style="margin:0 16px 14px;font-size:15px">Mehrere Preise mit Komma trennen. Sie erscheinen beim Schüler als Schnellauswahl.</p></div>`)}
+ ${block("Stundenplan & Zehnerkarten",`<div class="card"><div class="kv"><label for="ytg">Stunden pro Jahr (Durchzahler)</label><div style="display:flex;gap:8px;align-items:center"><input class="inp" id="ytg" data-target type="number" min="1" max="52" value="${h(st.yearTarget)}" style="max-width:90px"> pro Wochentag, siehe Jahresplan</div><label for="warn">Warnen bei noch</label><div style="display:flex;gap:8px;align-items:center"><input class="inp" id="warn" data-warn type="number" min="0" max="9" value="${h(st.warn)}" style="max-width:90px"> Stunden auf der Karte</div>
+  <span class="lbl" style="font-weight:600">Unterrichtstage</span><div class="presets">${[1,2,3,4,5,6,7].map(d=>`<label class="cbline" style="padding:0 6px 0 0"><input type="checkbox" data-day="${d}" ${st.days.includes(d)?"checked":""}> ${WDS[d]}</label>`).join("")}</div></div></div>`)}
+ ${hasSample||!hasReal?block("Beispielschüler",`<div class="card pad"><div class="row-btns">${hasSample?`<button class="btn danger" data-act="removeSample">${icon("trash")} Beispielschüler entfernen</button>`:`<button class="btn" data-act="sample">Beispielschüler laden</button>`}</div><p class="muted" style="margin:8px 0 0;font-size:15px">Beispielschüler sind mit „Beispiel:“ markiert. Beim Entfernen bleiben deine echten Schüler unberührt.</p></div>`):""}
+ <p class="muted" style="margin:0;font-size:14px">Schülerbuch · Speicher: ${Store.mode==="idb"?"auf dem Gerät":Store.mode==="ls"?"Browser-Speicher":"nur vorübergehend"}</p>`;
+};
+
+/* ================= Mehr ================= */
+VIEWS.more=()=>{
+ const y=S.planYear;const w=(D.settings.days||[]).filter(d=>d<=5);const st=w.map(d=>yearStat(y,d));const open=st.reduce((a,x)=>a+Math.max(0,x.need),0);
+ const card=(view,ic,title,sub)=>`<div class="srow" data-act="nav" data-view="${view}" role="button" tabindex="0" style="min-height:76px"><div class="ebadge">${icon(ic)}</div><div class="grow"><div class="lname" style="font-size:18px">${title}</div><div class="sub">${sub}</div></div>${icon("right")}</div>`;
+ return`<header class="phead"><div><p class="eyebrow">Jahresplan, Bedingungen, Einstellungen</p><h1>Mehr</h1></div></header>
+ ${topBanners()}
+ <div class="card list">
+  ${card("year","cal",`Jahresplan ${y}`,open?`Noch ${open} Tag${open===1?"":"e"} zu streichen, damit jeder Wochentag ${D.settings.yearTarget} Stunden hat`:`Alle Wochentage haben ${D.settings.yearTarget} Stunden`)}
+  ${card("terms","text",`Unterrichtsbedingungen ${y}`,"Ansehen, als PDF drucken oder an Schüler schicken")}
+  ${card("settings","sliders","Einstellungen & Sicherung","Ferien, Preise, Bankverbindung, Datensicherung")}
+ </div>`;
+};
+
+/* ================= Jahresplan ================= */
+function defaultPlanYear(){const t=todayStr();return +t.slice(5,7)>=9?+t.slice(0,4)+1:+t.slice(0,4)}
+function yearDays(y,w){return cached(`yd${y}_${w}`,()=>{const out=[];let d=`${y}-01-01`;while(d.startsWith(String(y))){if(wd(d)===w&&!baseFree(d))out.push(d);d=addDays(d,1)}return out})}
+function yearStat(y,w){const days=yearDays(y,w);const struck=days.filter(d=>D.settings.struck[d]);const left=days.length-struck.length;return{days,struck,left,need:left-(+D.settings.yearTarget||36)}}
+function suggestTag(d){const y=+d.slice(0,4),e=easter(y),hol=holidays(y);
+ if(d===addDays(e,-52))return"Weiberfastnacht";if(d===addDays(e,-48))return"Rosenmontag";if(d===addDays(e,-47))return"Fastnacht";
+ const w=wd(d);if(w===5&&hol[addDays(d,-1)])return"Brückentag";if(w===1&&hol[addDays(d,1)])return"Brückentag";return null}
+VIEWS.year=()=>{
+ const y=S.planYear,target=+D.settings.yearTarget||36;const W=(D.settings.days||[]).filter(d=>d<=5);
+ let out=`<div><button class="btn ghost" data-act="nav" data-view="more">${icon("left")} Mehr</button></div>
+ <header class="phead"><div><p class="eyebrow">${target} Stunden pro Wochentag für Durchzahler</p><h1>Jahresplan ${y}</h1></div>
+  <div class="weeknav"><button class="btn" data-act="yearPrev" aria-label="Voriges Jahr">${icon("left")}</button><span class="title" style="min-width:70px">${y}</span><button class="btn" data-act="yearNext" aria-label="Nächstes Jahr">${icon("right")}</button></div></header>
+ ${topBanners()}
+ <div class="card pad" style="display:flex;flex-direction:column;gap:10px"><p style="margin:0">Ferien und Feiertage sind schon herausgerechnet. <b>Tippe einen Tag an, um ihn zu streichen</b> – gestrichene Tage sind für alle Schüler unterrichtsfrei und verschwinden aus dem Stundenplan. Nochmal tippen holt den Tag zurück.</p>
+  <p class="muted" style="margin:0;font-size:15px">Gestrichelt umrandet: Vorschläge (Brückentage, Fasching).</p>
+  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="freeDaysPdf">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
+ for(const w of W){
+  const s=yearStat(y,w);
+  const chip=s.need>0?`<span class="chip warn">noch ${s.need} streichen</span>`:s.need===0?`<span class="chip good">${icon("check")} ${target} Stunden</span>`:`<span class="chip bad">${-s.need} zu wenig</span>`;
+  let months="",lastM="";
+  for(const d of s.days){const m=d.slice(5,7);if(m!==lastM){months+=`${lastM?"</div></div>":""}<div class="ymonth"><div class="ymlbl">${MONS[+m-1]}</div><div class="ydays">`;lastM=m}
+   const tag=suggestTag(d);const ev=eventsOn(d).map(e=>e.title).join(", ");const struck=!!D.settings.struck[d];
+   months+=`<button class="yday ${struck?"struck":""} ${tag?"sugg":""}" data-act="strike" data-d="${d}" aria-pressed="${struck}" title="${h(tag||ev||"")}">${parse(d).getDate()}.${tag||ev?`<small>${h(tag||ev)}</small>`:""}</button>`}
+  if(lastM)months+="</div></div>";
+  out+=`<section class="block"><div class="bhead"><h3>${WD[w]} <span class="muted" style="font-weight:400">· ${s.days.length} Tage, ${s.struck.length} gestrichen</span></h3>${chip}</div><div class="card pad">${months||`<p class="none">Keine Unterrichtstage.</p>`}</div></section>`;
+ }
+ return out;
+};
+function autoPlan(){
+ const y=S.planYear,target=+D.settings.yearTarget||36;let n=0;
+ for(const w of (D.settings.days||[]).filter(d=>d<=5)){
+  const s=yearStat(y,w);let need=s.need;if(need<=0)continue;
+  const free=s.days.filter(d=>!D.settings.struck[d]);
+  const pick=[...free.filter(d=>suggestTag(d)),...free.filter(d=>!suggestTag(d)).reverse()];
+  for(const d of pick){if(need<=0)break;D.settings.struck[d]=true;need--;n++}
+ }
+ changed();toast(n?`${n} Tage gestrichen – tippe Tage an, um sie zu ändern.`:"Alle Wochentage passen schon.");
+}
+
+/* ================= Unterrichtsbedingungen ================= */
+const maxOf=a=>(a&&a.length)?Math.max(...a.map(Number)):null;
+function termsModel(y,st){
+ const P=D.settings.prices||{},cp=D.settings.cardPrice||{},sp=D.settings.singlePrice,pr=D.settings.profile||{},T=+D.settings.yearTarget||36;
+ const p45=maxOf(P[45]),p30=maxOf(P[30]);
+ const sec=[];
+ sec.push({h:"Monatliche Zahlung",p:[`Der Gesangsunterricht wird monatlich abgerechnet und basiert auf einem Jahreskontingent von ${T} Stunden.`],rows:[p45!=null?["45 Minuten pro Woche",`${euro(p45)} monatlich`]:null,p30!=null?["30 Minuten pro Woche",`${euro(p30)} monatlich`]:null].filter(Boolean),
+  p2:["Bei Ausfall seitens des Schülers verfällt die Stunde. Lehrerausfall erfordert Nachholstunden seitens des Lehrers. Bei Unterrichtsausfall aufgrund von Krankheit besteht einmal pro Halbjahr keine Verpflichtung zum Nachholen der ausgefallenen Stunde zum Schutz der Lehrkraft.",
+      "Es findet kein Unterricht an Feiertagen, in den Ferien oder an unterrichtsfreien Tagen statt. Um eine gleichmäßige Behandlung aller Schüler sicherzustellen, gibt es unterrichtsfreie Tage, um ausgefallene Stunden nachzuholen. Diese werden dem Schüler zum Jahresbeginn gesondert mitgeteilt."]});
+ sec.push({h:"Zehner- und Fünferkarten",p:["Alternativ zur monatlichen Zahlung bietet sich eine Zehner- oder Fünferkarte an."],rows:[cp[10]!=null?["10 Stunden à 45 Minuten",euro(cp[10])]:null,cp[5]!=null?["5 Stunden à 45 Minuten",euro(cp[5])]:null].filter(Boolean),
+  p2:["Kein Anspruch auf wöchentliche Stunden. Abgesagte Stunden werden nicht von der Karte abgezogen – auch dann nicht, wenn die Absage kurzfristig erfolgt. Die Karte muss innerhalb eines Jahres ab Kaufdatum verbraucht werden. Nicht genutzte Stunden verfallen nach einem Jahr."]});
+ sec.push({h:"Einzelstunden und Probestunden",p:[],rows:sp!=null?[["Einzel- oder Probestunde, 45 Minuten",euro(sp)]]:[],p2:["Wird eine Einzel- oder Probestunde abgesagt, fällt sie aus und wird nicht berechnet."]});
+ sec.push({h:"Zahlungsform",p:[],rows:[["Monatliche Zahlung","per Dauerauftrag oder Überweisung"],["Zehner- und Fünferkarten","Barzahlung"]],p2:[]});
+ const bank=[pr.owner?["Kontoinhaber",pr.owner]:null,pr.bank?["Bank",pr.bank]:null,pr.iban?["IBAN",pr.iban]:null,pr.bic?["BIC",pr.bic]:null].filter(Boolean);
+ sec.push({h:"Bankverbindung",p:bank.length?[]:["(Bitte in den Einstellungen eintragen.)"],rows:bank,p2:[]});
+ sec.push({h:"Anhang: Bestehende Preise für Schüler vor 2024",p:["Schüler, die vor dem Jahr 2024 bereits Unterricht in Anspruch genommen haben, behalten ihre bisherigen Preise bei. Dies betrifft die monatlichen Gebühren sowie die Kosten für Zehnerkarten. Ab dem Zeitpunkt der Geschäftsvereinbarung gelten für diese Schüler weiterhin die vor 2024 vereinbarten Preise, sofern keine neuen Vereinbarungen getroffen werden."],rows:[],p2:[]});
+ let personal=null;
+ if(st){const parts=[];if(st.billing==="durch")parts.push(`${st.dur} Minuten pro Woche, ${st.price!=null?euro(st.price)+" monatlich":"Monatsbetrag nach Vereinbarung"}`);else if(st.billing==="zehner")parts.push("Zehner- oder Fünferkarte, 45 Minuten");else if(st.billing==="einzeln")parts.push(`Einzelstunden, ${st.dur} Minuten${st.price!=null?", "+euro(st.price)+" pro Stunde":""}`);else if(st.billing==="ms")parts.push("Unterricht über die Musikschule");else if(st.billing==="frei")parts.push(`${st.dur} Minuten, ohne Kosten`);personal={name:st.name.replace(/^Beispiel:\s*/,""),line:parts.join("")}}
+ return{title:`Unterrichtsbedingungen ${y}`,sub:"Vereinbarung für Gesangsunterricht",sender:pr.name||"",contact:pr.contact||"",sec,personal};
+}
+VIEWS.terms=()=>{
+ const y=S.planYear;const st=S.termsFor?D.students[S.termsFor]:null;const M=termsModel(y,st);const pr=D.settings.profile||{};
+ const L=students().filter(s=>s.status!=="archiviert");
+ const secHtml=M.sec.map(x=>`<section class="tsec"><h3>${h(x.h)}</h3>${x.p.map(t=>`<p>${h(t)}</p>`).join("")}${x.rows.length?`<dl class="trows ${x.mono?"mono":""}">${x.rows.map(([a,b])=>`<dt>${h(a)}</dt><dd>${h(b)}</dd>`).join("")}</dl>`:""}${x.p2.map(t=>`<p>${h(t)}</p>`).join("")}</section>`).join("");
+ return`<div><button class="btn ghost" data-act="nav" data-view="more">${icon("left")} Mehr</button></div>
+ <header class="phead"><div><p class="eyebrow">Zum Drucken oder Verschicken</p><h1>Unterrichtsbedingungen</h1></div>
+  <div class="row-btns"><button class="btn primary" data-act="termsPdf">${icon("save")} Als PDF teilen / drucken</button></div></header>
+ ${topBanners()}
+ <div class="card pad" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><label for="tfor" style="font-weight:700">Für</label><select class="inp" id="tfor" data-termsfor style="max-width:340px"><option value="">Allgemein (ohne Namen)</option>${L.map(s=>`<option value="${h(s.id)}" ${S.termsFor===s.id?"selected":""}>${h(s.name)}</option>`).join("")}</select><span class="muted" style="font-size:15px">Mit Name erscheinen auch der persönliche Preis und eine Zeile zum Unterschreiben.</span></div>
+ ${!pr.iban?`<div class="banner warn"><p>Die Bankverbindung fehlt noch. Trag sie unter <b>Mehr → Einstellungen</b> ein – sie wird nur auf diesem iPad gespeichert.</p><button class="btn" data-act="nav" data-view="settings">Eintragen</button></div>`:""}
+ <article class="paper"><div class="ptop"><div><div class="pkicker">${h(M.sub)}</div><h2 class="ptitle">${h(M.title)}</h2></div>${M.sender?`<div class="psender">${h(M.sender)}${M.contact?`<br><span>${h(M.contact).replace(/\n/g,"<br>")}</span>`:""}</div>`:""}</div>
+  <div class="staff" aria-hidden="true"></div>
+  ${M.personal?`<div class="pfor"><b>Für ${h(M.personal.name)}</b> · ${h(M.personal.line)}</div>`:""}
+  ${secHtml}
+  <div class="psign"><div><span></span>Ort, Datum</div><div><span></span>Zur Kenntnis genommen${M.personal?` – ${h(M.personal.name)}`:""}</div></div>
+ </article>`;
+};
+
+/* ================= PDF ================= */
+let pdfLoading=null;
+function loadPdfLib(){if(window.jspdf)return Promise.resolve(window.jspdf);if(pdfLoading)return pdfLoading;pdfLoading=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="jspdf.umd.min.js";sc.onload=()=>res(window.jspdf);sc.onerror=()=>{pdfLoading=null;rej(new Error("PDF-Baustein fehlt"))};document.head.appendChild(sc)});return pdfLoading}
+function pdfDoc(){
+ const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});
+ const W=210,M=22,CW=W-2*M,ACC=[123,45,91],INK=[27,33,48],MUT=[93,101,118];let y=24;
+ const api={doc,
+  ensure(hh){if(y+hh>277){doc.addPage();y=24}},
+  kicker(t){doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...ACC);doc.text(t.toUpperCase(),M,y,{charSpace:.6});y+=7},
+  title(t,right){doc.setFont("times","bold");doc.setFontSize(24);doc.setTextColor(...INK);doc.text(t,M,y);if(right){doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...MUT);doc.text(doc.splitTextToSize(right,62),W-M,y-9,{align:"right"})}y+=5;
+   doc.setDrawColor(...ACC);doc.setLineWidth(.25);for(let i=0;i<5;i++)doc.line(M,y+i*1.2,M+CW,y+i*1.2);y+=12},
+  box(t){doc.setFont("helvetica","normal");doc.setFontSize(10.5);const L=doc.splitTextToSize(t,CW-10);const hh=L.length*5+6;api.ensure(hh+4);doc.setFillColor(245,232,240);doc.roundedRect(M,y-4.5,CW,hh,2,2,"F");doc.setTextColor(...INK);doc.text(L,M+5,y+.5);y+=hh+4},
+  h(t){api.ensure(16);doc.setFont("helvetica","bold");doc.setFontSize(12.5);doc.setTextColor(...ACC);doc.text(t,M,y);y+=6.5},
+  p(t){doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.setTextColor(...INK);const L=doc.splitTextToSize(t,CW);api.ensure(L.length*5);doc.text(L,M,y,{lineHeightFactor:1.35});y+=L.length*5+2.5},
+  rows(R,mono){for(const[a,b]of R){api.ensure(7);doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.setTextColor(...MUT);doc.text(a,M+4,y);doc.setFont(mono?"courier":"helvetica","bold");doc.setTextColor(...INK);doc.text(b,W-M,y,{align:"right"});doc.setDrawColor(221,225,232);doc.setLineWidth(.2);doc.line(M+4,y+2.2,W-M,y+2.2);y+=7}y+=2},
+  gap(n){y+=n},
+  sign(name){api.ensure(30);y+=16;doc.setDrawColor(...MUT);doc.setLineWidth(.3);const half=(CW-12)/2;doc.line(M,y,M+half,y);doc.line(M+half+12,y,W-M,y);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...MUT);doc.text("Ort, Datum",M,y+5);doc.text("Zur Kenntnis genommen"+(name?" – "+name:""),M+half+12,y+5);y+=10},
+  footer(t){const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...MUT);doc.text(t,M,289);doc.text(`Seite ${i} von ${n}`,W-M,289,{align:"right"})}},
+  get y(){return y},set y(v){y=v}};
+ return api;
+}
+function sharePdf(doc,name){
+ const blob=doc.output("blob");let file;try{file=new File([blob],name,{type:"application/pdf"})}catch(e){file=null}
+ if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(e=>{if(e&&e.name!=="AbortError")toast("Teilen hat nicht geklappt. Bitte noch einmal tippen.")});return}
+ if(S.framed){toast("In der Vorschau geht das nicht – auf dem iPad öffnet sich das Teilen-Menü (Drucken, Mail, AirDrop).");return}
+ const url=URL.createObjectURL(blob);const w=window.open(url,"_blank");if(!w)location.href=url;setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function withPdf(fn){if(window.jspdf){try{fn()}catch(e){toast("PDF konnte nicht erstellt werden.")}return}toast("PDF wird vorbereitet – bitte gleich noch einmal tippen.");loadPdfLib().catch(()=>toast("PDF-Baustein fehlt. Bitte die Datei jspdf.umd.min.js mit hochladen."))}
+function termsPdf(){withPdf(()=>{
+ const st=S.termsFor?D.students[S.termsFor]:null;const M=termsModel(S.planYear,st);const P=pdfDoc();
+ P.kicker(M.sub);P.title(M.title,[M.sender,M.contact].filter(Boolean).join("\n"));
+ if(M.personal)P.box(`Für ${M.personal.name} · ${M.personal.line}`);
+ for(const x of M.sec){P.h(x.h);x.p.forEach(P.p);if(x.rows.length)P.rows(x.rows,x.mono);x.p2.forEach(P.p);P.gap(3)}
+ P.sign(M.personal?M.personal.name:"");P.footer(M.title+(M.sender?" · "+M.sender:""));
+ sharePdf(P.doc,`${M.title.replace(/\s+/g,"-")}${M.personal?"-"+M.personal.name.replace(/\s+/g,"-"):""}.pdf`.replace(/[^\wäöüÄÖÜß.\-]/g,""));
+})}
+function freeDaysPdf(){withPdf(()=>{
+ const y=S.planYear,pr=D.settings.profile||{},target=+D.settings.yearTarget||36;const P=pdfDoc();
+ P.kicker("Gesangsunterricht");P.title(`Unterrichtsfreie Tage ${y}`,[pr.name,pr.contact].filter(Boolean).join("\n"));
+ P.p(`Monatlich zahlende Schüler erhalten ${target} Stunden im Jahr. Damit das für jeden Wochentag gleich ist, gibt es neben den Ferien und Feiertagen einige zusätzliche unterrichtsfreie Tage. An diesen Tagen findet kein Unterricht statt.`);P.gap(2);
+ const fer=(D.settings.free||[]).filter(f=>f.from&&f.to&&f.to>=`${y}-01-01`&&f.from<=`${y}-12-31`).sort((a,b)=>a.from.localeCompare(b.from));
+ if(fer.length){P.h("Ferien und freie Zeiten");P.rows(fer.map(f=>[f.name||"Unterrichtsfrei",`${fmtD(f.from)} – ${fmtD(f.to)}`]))}
+ const hol=Object.entries(holidays(y)).filter(([d])=>wd(d)<=5&&!(D.settings.free||[]).some(f=>d>=f.from&&d<=f.to)).sort();
+ if(hol.length){P.h("Feiertage");P.rows(hol.map(([d,n])=>[n,`${WD[wd(d)]}, ${fmtD(d)}`]))}
+ P.h("Zusätzliche unterrichtsfreie Tage");
+ const W=(D.settings.days||[]).filter(d=>d<=5);let any=false;
+ for(const w of W){const s=yearStat(y,w);if(!s.struck.length)continue;any=true;P.rows([[WD[w],s.struck.map(d=>fmtDs(d)).join(", ")]])}
+ if(!any)P.p("Keine.");
+ P.footer(`Unterrichtsfreie Tage ${y}`+(pr.name?" · "+pr.name:""));
+ sharePdf(P.doc,`Unterrichtsfreie-Tage-${y}.pdf`);
+})}
+
+/* ================= Rendern ================= */
+const TABS=[["home","Heute","home"],["plan","Stundenplan","cal"],["students","Schüler","users"],["pay","Zahlungen","euro"],["ms","Musikschule","school"],["events","Konzerte","note"],["more","Mehr","sliders"]];
+let rq=false,pending=false;
+function render(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;doRender()})}
+function doRender(){
+ if(!S.ready)return;
+ const ae=document.activeElement;
+ if(ae&&$("#main").contains(ae)&&ae.matches("input,textarea,select")){pending=true;return}
+ const sy=window.scrollY;
+ $("#main").innerHTML=(VIEWS[S.view]||VIEWS.home)();
+ const cur=S.view==="student"?"students":["settings","year","terms"].includes(S.view)?"more":S.view;
+ $("#tabs").innerHTML=TABS.map(([v,l,i])=>`<button class="tab" data-act="nav" data-view="${v}" ${cur===v?'aria-current="page"':""}>${icon(i)}<span class="lbl">${l}</span></button>`).join("");
+ if(S.keepScroll){window.scrollTo(0,sy);}
+ S.keepScroll=true;
+}
+document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
+function go(view,arg){if(view==="terms"||view==="year")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;window.scrollTo(0,0);render()}
+
+/* ================= Toast ================= */
+let toastT;
+function toast(text,btnLabel,fn){$("#toastText").textContent=text;const b=$("#toastBtn");if(btnLabel){b.hidden=false;b.textContent=btnLabel;b.onclick=()=>{hideToast();fn()}}else{b.hidden=true;b.onclick=null}$("#toast").classList.add("show");clearTimeout(toastT);toastT=setTimeout(hideToast,btnLabel?5000:2600)}
+function hideToast(){$("#toast").classList.remove("show")}
+
+/* ================= Sheet (Dialog) ================= */
+let sheetClose=null;
+function openSheet(html,setup){const p=$("#panel");p.innerHTML=html;$("#sheet").classList.add("open");document.body.style.overflow="hidden";p.scrollTop=0;sheetClose=null;if(setup)setup(p);const f=p.querySelector("[autofocus]");if(f&&matchMedia("(pointer:fine)").matches)f.focus()}
+function closeSheet(){$("#sheet").classList.remove("open");document.body.style.overflow="";$("#panel").innerHTML="";if(sheetClose)sheetClose();sheetClose=null;render()}
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#sheet").classList.contains("open"))closeSheet();if((e.key==="Enter"||e.key===" ")&&e.target.matches('[role="button"][data-act]')){e.preventDefault();e.target.click()}});
+const sheetHead=(title,sub)=>`<div class="ph"><div><h3 style="font-size:22px;font-family:var(--font-display)">${title}</h3>${sub?`<div class="sub">${sub}</div>`:""}</div><button class="xbtn" type="button" data-sact="close" aria-label="Schließen">${icon("x")}</button></div>`;
+const seg=(name,opts,val)=>`<div class="seg" role="radiogroup">${opts.map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}" ${String(val)===String(v)?"checked":""}><span>${l}</span></label>`).join("")}</div>`;
+function formVals(root){const o={};$$("[name]",root).forEach(el=>{if(el.type==="radio"){if(el.checked)o[el.name]=el.value}else if(el.type==="checkbox")o[el.name]=el.checked;else o[el.name]=el.value});return o}
+function applyWhen(root){const v=formVals(root);$$("[data-when]",root).forEach(el=>{const ok=el.dataset.when.split("|").some(cond=>{const[k,val]=cond.split("=");return val===undefined?!!v[k]:String(v[k])===val});el.hidden=!ok})}
+function confirmSheet(title,text,okLabel,fn,danger=true){openSheet(`${sheetHead(title)}<p style="margin:0">${text}</p><div class="foot"><div class="r"><button class="btn" data-sact="close">Abbrechen</button><button class="btn ${danger?"danger":"primary"}" data-sact="ok">${okLabel}</button></div></div>`,p=>{p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="ok"){closeSheet();fn()}}})}
+
+/* ----- Schüler-Formular ----- */
+function blankStudent(){return{id:newId(),name:"",kind:"einzel",members:[],status:"aktiv",billing:"durch",dur:45,price:null,slots:[],start:todayStr(),notes:"",cards:[],paid:{},waitSince:todayStr(),waitWish:"",created:todayStr()}}
+function openStudentForm(id,preset){
+ const isNew=!id||!D.students[id];
+ const st=Object.assign(JSON.parse(JSON.stringify(isNew?blankStudent():D.students[id])),preset||{});
+ if(!st.slots.length&&isNew)st.slots=[];
+ const slotRow=s=>`<div class="slotrow" data-slot="${h(s.id)}">
+   <label><span class="mini">Wochentag</span><select class="inp" data-k="wd">${[...new Set([...D.settings.days,+s.wd])].sort().map(d=>`<option value="${d}" ${+s.wd===d?"selected":""}>${WD[d]}</option>`).join("")}</select></label>
+   <label><span class="mini">Uhrzeit</span><input class="inp" type="time" data-k="time" value="${h(s.time||"")}"></label>
+   <label><span class="mini">Rhythmus</span><select class="inp" data-k="rh"><option value="1" ${s.rh!=="2"?"selected":""}>wöchentlich</option><option value="2" ${s.rh==="2"?"selected":""}>14-tägig</option></select></label>
+   <label><span class="mini">ab</span><input class="inp" type="date" data-k="from" value="${h(s.from||st.start||todayStr())}"></label>
+   <button class="xbtn" type="button" data-sact="delSlot" aria-label="Termin entfernen">${icon("x")}</button></div>`;
+ const presets=d=>(D.settings.prices[d]||[]).map(p=>`<button type="button" class="cbtn ${+st.price===+p?"on":""}" data-sact="fill" data-v="${p}">${euro(p)}</button>`).join("");
+ openSheet(`${sheetHead(isNew?"Neuer Schüler":"Schüler bearbeiten")}
+  <form id="sf" novalidate style="display:flex;flex-direction:column;gap:16px">
+  <div class="field"><span class="lbl">Art</span>${seg("kind",[["einzel","Einzelunterricht"],["gruppe","Zweiergruppe"]],st.kind||"einzel")}</div>
+  <div class="two" data-when="kind=gruppe"><div class="field"><label for="f_m1">Teilnehmer 1</label><input class="inp" id="f_m1" name="m1" value="${h((st.members||[])[0]||"")}" autocomplete="off"></div><div class="field"><label for="f_m2">Teilnehmer 2</label><input class="inp" id="f_m2" name="m2" value="${h((st.members||[])[1]||"")}" autocomplete="off"></div></div>
+  <div class="field"><label for="f_name"><span data-when="kind=einzel">Name</span><span data-when="kind=gruppe">Name der Gruppe (freiwillig)</span></label><input class="inp" id="f_name" name="name" value="${h(st.name)}" placeholder="Vor- und Nachname" autocomplete="off" autofocus><p class="hint" data-when="kind=gruppe">Leer lassen, dann heißt die Gruppe z. B. „Lea & Tim“.</p></div>
+  <div class="field"><span class="lbl">Foto</span><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div id="phPrev">${avatar(st,"lg")}</div><button type="button" class="btn sm" data-sact="pickPhoto">${icon("plus")} ${st.photo?"Foto ändern":"Foto wählen"}</button><button type="button" class="btn sm ghost" data-sact="delPhoto" id="phDel" ${st.photo?"":"hidden"}>Foto entfernen</button><input type="file" id="f_photo" accept="image/*" hidden></div><p class="hint">Freiwillig. Bleibt nur auf diesem iPad.</p></div>
+  <div class="field"><span class="lbl">Status</span>${seg("status",[["aktiv","Aktiv"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiviert"]],st.status)}</div>
+  <div class="two" data-when="status=pausiert"><div class="field"><label for="f_pu">Pausiert bis (freiwillig)</label><input class="inp" id="f_pu" type="date" name="pauseUntil" value="${h(st.pauseUntil||"")}"></div><div class="field"><label for="f_pn">Grund (freiwillig)</label><input class="inp" id="f_pn" name="pauseNote" value="${h(st.pauseNote||"")}" placeholder="z. B. Auslandssemester" autocomplete="off"></div></div>
+  <p class="hint info" data-when="status=pausiert">Pausierte Schüler stehen nicht im Stundenplan und nicht bei den Zahlungen. Fester Termin und Unterrichtstagebuch bleiben erhalten.</p>
+  <div class="two" data-when="status=warteliste"><div class="field"><label for="f_ws">Wartet seit</label><input class="inp" id="f_ws" type="date" name="waitSince" value="${h(st.waitSince||"")}"></div><div class="field"><label for="f_ww">Wunschzeiten</label><input class="inp" id="f_ww" name="waitWish" value="${h(st.waitWish||"")}" placeholder="z. B. Di/Do nachmittags"></div></div>
+  <div class="field"><span class="lbl">Abrechnung</span>${seg("billing",[["durch","Durchzahler"],["zehner","Karte"],["einzeln","Einzelstunde"],["ms","Musikschule"],["frei","Kostenlos"]],st.billing)}</div>
+  <div class="field" data-when="billing=durch|billing=ms|billing=einzeln|billing=frei"><span class="lbl">Stundenlänge</span>${seg("dur",[[30,"30 Min."],[45,"45 Min."],[60,"60 Min."]],st.dur)}</div>
+  <div class="field" data-when="billing=durch"><label for="f_price">Monatsbetrag (12 × im Jahr)</label><div class="presets" id="presets">${presets(st.dur)}</div><input class="inp" id="f_price" name="price" inputmode="decimal" value="${h(st.price==null?"":st.price)}" placeholder="Betrag in €" style="max-width:200px"></div>
+  <div class="field" data-when="billing=einzeln"><label for="f_lp">Preis pro Stunde</label><input class="inp" id="f_lp" name="lprice" inputmode="decimal" value="${h(st.billing==="einzeln"&&st.price!=null?st.price:(D.settings.singlePrice??""))}" placeholder="€" style="max-width:200px"><p class="hint">Jede gehaltene Stunde kannst du unter „Zahlungen“ als bezahlt abhaken.</p></div>
+  <p class="hint info" data-when="billing=zehner">Zehner- und Fünferkarten gibt es nur für 45 Minuten. Die Karten legst du nach dem Speichern beim Schüler an. Gezählt werden nur gehaltene Stunden.</p>
+  <p class="hint info" data-when="billing=frei">Unterricht ohne Bezahlung. Dieser Schüler erscheint deshalb nicht unter „Zahlungen“.</p>
+  <p class="hint info" data-when="billing=ms">Die Musikschule rechnet ab. Deshalb gibt es bei diesem Schüler keinen Preis und kein Bezahlt-Häkchen.</p>
+  <div class="field"><span class="lbl">Fester Termin</span><p class="hint">Nur ausfüllen, wenn der Schüler immer zur gleichen Zeit kommt. Die Stunde steht dann automatisch im Stundenplan, außer in den Ferien und an Feiertagen. Ohne festen Termin trägst du Stunden einzeln über „+ Termin“ ein.</p><div id="slots" style="display:flex;flex-direction:column;gap:10px">${st.slots.map(slotRow).join("")}</div><div><button type="button" class="btn sm" data-sact="addSlot">${icon("plus")} Festen Termin hinzufügen</button></div></div>
+  <div class="field"><label for="f_start">Unterricht seit</label><input class="inp" id="f_start" type="date" name="start" value="${h(st.start||"")}" style="max-width:220px"></div>
+  <div class="field"><label for="f_notes">Notizen</label><textarea class="inp" id="f_notes" name="notes" placeholder="z. B. Repertoire, Ziele, Stimmlage">${h(st.notes||"")}</textarea></div>
+  <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div>
+  </form>`,p=>{
+  const f=$("#sf",p);applyWhen(f);
+  f.addEventListener("change",e=>{applyWhen(f);if(e.target.name==="dur"){st.price=num($("#f_price",p).value);$("#presets",p).innerHTML=presets(+e.target.value)}});
+  $("#f_photo",p).addEventListener("change",async e=>{const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
+   try{st.photo=await resizePhoto(file);$("#phPrev",p).innerHTML=avatar(st,"lg");$("#phDel",p).hidden=false}catch(err){toast("Dieses Foto konnte nicht gelesen werden.")}});
+  f.addEventListener("input",e=>{if(e.target.name==="price"){$$(".cbtn",p).forEach(b=>b.classList.toggle("on",+b.dataset.v===num(e.target.value)))}});
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;const a=b.dataset.sact;
+   if(a==="close")closeSheet();
+   else if(a==="fill"){$("#f_price",p).value=b.dataset.v;$$(".cbtn",p).forEach(x=>x.classList.toggle("on",x===b))}
+   else if(a==="pickPhoto")$("#f_photo",p).click();
+   else if(a==="delPhoto"){st.photo=null;$("#phPrev",p).innerHTML=avatar({name:$("#f_name",p).value||st.name},"lg");$("#phDel",p).hidden=true}
+   else if(a==="addSlot"){const s={id:newId(),wd:2,time:"",rh:"1",from:$("#f_start",p).value||todayStr()};$("#slots",p).insertAdjacentHTML("beforeend",slotRow(s))}
+   else if(a==="delSlot")b.closest(".slotrow").remove();
+   else if(a==="del")confirmSheet("Schüler löschen?",`<b>${h(st.name)}</b> wird mit allen Stunden, Notizen und Erinnerungen endgültig gelöscht. Wenn jemand nur nicht mehr kommt, ist <b>Archivieren</b> besser – dann bleibt der Verlauf erhalten.`,"Endgültig löschen",()=>{deleteStudent(st.id);go("students")});
+  };
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);
+   const mem=v.kind==="gruppe"?[v.m1,v.m2].map(x=>(x||"").trim()).filter(Boolean):[];
+   if(v.kind==="gruppe"&&!v.name.trim())v.name=mem.join(" & ");
+   if(!v.name.trim()){$(v.kind==="gruppe"?"#f_m1":"#f_name",p).focus();toast(v.kind==="gruppe"?"Bitte die Namen der beiden Teilnehmer eintragen.":"Bitte einen Namen eintragen.");return}
+   st.kind=v.kind||"einzel";st.members=mem;
+   const old=D.students[st.id];
+   st.name=v.name.trim();st.status=v.status;st.billing=v.billing;st.dur=v.billing==="zehner"?45:+v.dur;st.price=v.billing==="durch"?num(v.price):v.billing==="einzeln"?num(v.lprice):null;st.start=v.start||null;st.notes=v.notes.trim();st.waitSince=v.waitSince||null;st.waitWish=v.waitWish.trim();if(v.status==="pausiert"){st.pauseUntil=v.pauseUntil||null;st.pauseNote=(v.pauseNote||"").trim()}else{delete st.pauseUntil;delete st.pauseNote}
+   st.slots=$$(".slotrow",f).map(r=>({id:r.dataset.slot,wd:+$('[data-k="wd"]',r).value,time:$('[data-k="time"]',r).value,rh:$('[data-k="rh"]',r).value,from:$('[data-k="from"]',r).value||st.start||todayStr()})).filter(s=>s.time);
+   if(st.status==="archiviert"&&(!old||old.status!=="archiviert"))st.archivedAt=todayStr();
+   if(st.status!=="archiviert")delete st.archivedAt;
+   D.students[st.id]=st;changed();closeSheet();
+   if(isNew){go("student",st.id);toast(st.billing==="zehner"?"Gespeichert. Jetzt die Zehnerkarte anlegen.":"Gespeichert.")}
+   else toast(old&&old.status!==st.status&&st.status==="archiviert"?`${st.name} ist jetzt im Archiv.`:"Gespeichert.");
+  };
+ });
+}
+function resizePhoto(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();
+ img.onload=()=>{try{const S2=320,c=document.createElement("canvas");c.width=S2;c.height=S2;const k=Math.min(img.naturalWidth,img.naturalHeight);const sx=(img.naturalWidth-k)/2,sy=(img.naturalHeight-k)*0.3;c.getContext("2d").drawImage(img,sx,sy,k,k,0,0,S2,S2);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",0.82))}catch(e){rej(e)}};
+ img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("Bild"))};img.src=url})}
+function deleteStudent(id){delete D.students[id];for(const [k,l] of Object.entries(D.lessons))if(l.sid===id)delete D.lessons[k];for(const [k,r] of Object.entries(D.reminders))if(r.sid===id)delete D.reminders[k];for(const e of Object.values(D.events))if(e.sids)e.sids=e.sids.filter(x=>x!==id);changed()}
+
+/* ----- Stunden-Dialog ----- */
+function cleanLesson(l){return{id:l.id,sid:l.sid,date:l.date,time:l.time||"",dur:+l.dur||null,kind:l.kind||"einzel",status:l.status||"offen",by:l.status==="abgesagt"?(l.by||null):null,nachholen:l.status==="abgesagt"?!!l.nachholen:false,nachholId:l.nachholId||null,nachholFor:l.nachholFor||null,note:l.note||"",paid:!!l.paid,sick:l.status==="abgesagt"&&l.by==="ich"&&!!l.sick,example:l.example||undefined}}
+function saveLesson(l){D.lessons[l.id]=cleanLesson(l);changed()}
+function markHeld(id){const l=lessonById(id);if(!l)return;l.status="gehalten";saveLesson(l);const st=D.students[l.sid];
+ let msg=`${st?st.name:"Stunde"}: gehalten`;if(st&&st.billing==="zehner"){const c=cardStats(st);msg+=c.none?" · keine Karte!":` · noch ${Math.max(c.remaining,0)} auf der Karte`}
+ toast(msg,"Notiz schreiben",()=>openLesson(id))}
+function openLesson(id,preset){
+ const l=lessonById(id);if(!l)return;Object.assign(l,preset||{});const st=D.students[l.sid];if(!st)return;
+ if(preset&&preset.status==="abgesagt"&&!l.by){l.by="schueler"}
+ const nhL=l.nachholId?lessonById(l.nachholId):null,forL=l.nachholFor?lessonById(l.nachholFor):null;
+ const rems=()=>{const rs=Object.values(D.reminders).filter(r=>r.sid===st.id&&!r.done);return rs.length?rs.map(r=>`<div class="remrow" style="padding:6px 0"><button type="button" class="check" data-sact="remDone" data-id="${h(r.id)}" aria-label="Erledigt"></button><div class="grow">${h(r.text)}</div></div>`).join(""):`<p class="hint">Keine offenen Erinnerungen.</p>`};
+ const kindLbl={regel:"Feste Stunde",einzel:"Einzeltermin",nachhol:"Nachholstunde"}[l.kind]||"";
+ openSheet(`${sheetHead(h(st.name),`${fmtLong(l.date)} · ${h(l.time||"")} Uhr · ${kindLbl}`)}
+  <form id="lf" novalidate style="display:flex;flex-direction:column;gap:16px">
+  ${forL?`<p class="info" style="margin:0">Nachholstunde für die abgesagte Stunde vom ${fmtD(forL.date)}.</p>`:""}
+  <div class="field"><span class="lbl">Stunde</span>${seg("status",[["offen","Offen"],["gehalten","Gehalten"],["abgesagt","Abgesagt"]],l.status)}</div>
+  <div data-when="status=abgesagt" style="display:flex;flex-direction:column;gap:12px">
+   <div class="field"><span class="lbl">Wer hat abgesagt?</span>${seg("by",[["schueler","Schüler"],["ich","Ich"]],l.by||"schueler")}</div>
+   ${st.billing==="durch"?`<div data-when="by=ich"><label class="cbline"><input type="checkbox" name="sick" ${l.sick?"checked":""}> Wegen Krankheit</label><p class="hint" id="sickHint"></p></div>`:""}
+   <label class="cbline"><input type="checkbox" name="nachholen" ${l.nachholen||(preset&&preset.status==="abgesagt"&&l.by==="ich")?"checked":""}> Soll nachgeholt werden</label>
+   ${nhL?`<p class="info" style="margin:0">Nachholtermin: <b>${WDS[wd(nhL.date)]} ${fmtD(nhL.date)}, ${h(nhL.time)} Uhr</b></p>`:`<div class="two" data-when="nachholen"><div class="field"><label for="l_nd">Nachholtermin (Datum)</label><input class="inp" id="l_nd" type="date" name="nhDate"></div><div class="field"><label for="l_nt">Uhrzeit</label><input class="inp" id="l_nt" type="time" name="nhTime" value="${h(l.time||"")}"></div></div><p class="hint" data-when="nachholen">Kannst du auch später eintragen. Bis dahin steht die Stunde unter „Zu erledigen“.</p>`}
+   ${st.billing==="zehner"?`<p class="hint">Abgesagte Stunden werden nicht von der Zehnerkarte abgezogen.</p>`:""}
+  </div>
+  ${st.billing==="einzeln"?`<label class="cbline" data-when="status=gehalten"><input type="checkbox" name="paid" ${l.paid?"checked":""}> Bezahlt (${euro(st.price)})</label>`:""}
+  <div class="field"><label for="l_note">Was haben wir gemacht?</label><textarea class="inp" id="l_note" name="note" placeholder="z. B. Atemübungen, Stück XY ab Takt 20, Registerwechsel">${h(l.note||"")}</textarea></div>
+  <div class="field"><span class="lbl">${icon("bell")} Fürs nächste Mal</span><div id="lrems">${rems()}</div>
+   <div style="display:flex;gap:8px"><input class="inp" name="newRem" placeholder="z. B. Noten mitbringen, Aufnahme machen" autocomplete="off"><button type="button" class="btn" data-sact="addRem">Merken</button></div></div>
+  <details class="more"><summary>Termin verschieben</summary><div class="three"><div class="field"><label for="l_d">Datum</label><input class="inp" id="l_d" type="date" name="date" value="${h(l.date)}"></div><div class="field"><label for="l_t">Uhrzeit</label><input class="inp" id="l_t" type="time" name="time" value="${h(l.time||"")}"></div><div class="field"><label for="l_du">Dauer</label><select class="inp" id="l_du" name="dur">${[30,45,60].map(d=>`<option value="${d}" ${+(l.dur||st.dur)===d?"selected":""}>${d} Min.</option>`).join("")}</select></div></div></details>
+  <div class="foot">${l.kind!=="regel"&&D.lessons[l.id]?`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Termin löschen</button>`:`<button type="button" class="btn ghost" data-sact="toStudent">Zum Schüler</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div>
+  </form>`,p=>{
+  const f=$("#lf",p);applyWhen(f);
+  let byTouched=false;
+  const sickInfo=()=>{const hint=$("#sickHint",p);if(!hint)return;const v=formVals(f);if(!v.sick){hint.textContent="";return}
+   const half=x=>x.slice(0,4)+(+x.slice(5,7)<=6?"a":"b");const dt=v.date||l.date;
+   const n=Object.values(D.lessons).filter(o=>o.id!==l.id&&o.sid===st.id&&o.status==="abgesagt"&&o.by==="ich"&&o.sick&&half(o.date)===half(dt)).length;
+   hint.textContent=n===0?"Erster Ausfall wegen Krankheit in diesem Halbjahr – muss laut deinen Bedingungen nicht nachgeholt werden.":`Schon ${n}× wegen Krankheit in diesem Halbjahr – diese Stunde bitte nachholen.`;return n};
+  sickInfo();
+  f.addEventListener("change",e=>{if(e.target.name==="sick"){const n=sickInfo();const cb=f.querySelector('[name="nachholen"]');if(cb&&e.target.checked){cb.checked=n>0;byTouched=true}else if(cb&&!e.target.checked){cb.checked=true}}
+  if(e.target.name==="by"&&!byTouched){const cb=f.querySelector('[name="nachholen"]');if(cb&&!l.nachholen)cb.checked=e.target.value==="ich"}if(e.target.name==="nachholen")byTouched=true;applyWhen(f)});
+  const addRem=()=>{const inp=f.querySelector('[name="newRem"]');const t=inp.value.trim();if(!t)return;const r={id:newId(),sid:st.id,text:t,done:false,created:todayStr()};D.reminders[r.id]=r;changed();inp.value="";$("#lrems",p).innerHTML=rems()};
+  f.querySelector('[name="newRem"]').addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addRem()}});
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;const a=b.dataset.sact;
+   if(a==="close")closeSheet();
+   else if(a==="addRem")addRem();
+   else if(a==="remDone"){const r=D.reminders[b.dataset.id];if(r){r.done=true;r.doneAt=todayStr();changed();$("#lrems",p).innerHTML=rems()}}
+   else if(a==="toStudent"){closeSheet();go("student",st.id)}
+   else if(a==="del")confirmSheet("Termin löschen?","Dieser Einzeltermin wird entfernt.","Löschen",()=>{const L=D.lessons[l.id];if(L&&L.nachholFor&&D.lessons[L.nachholFor])D.lessons[L.nachholFor].nachholId=null;delete D.lessons[l.id];changed()});
+  };
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);
+   addRem();
+   l.status=v.status;l.by=v.by||null;l.sick=!!v.sick&&v.status==="abgesagt"&&v.by==="ich";if("paid" in v)l.paid=!!v.paid&&v.status==="gehalten";l.nachholen=!!v.nachholen;l.note=(v.note||"").trim();
+   if(v.date)l.date=v.date;if(v.time!==undefined)l.time=v.time;if(v.dur)l.dur=+v.dur;
+   if(l.status==="abgesagt"&&l.nachholen&&!l.nachholId&&v.nhDate){const n={id:"n_"+newId(),sid:st.id,date:v.nhDate,time:v.nhTime||l.time,dur:l.dur||st.dur,kind:"nachhol",status:"offen",nachholFor:l.id,note:""};saveLesson(n);l.nachholId=n.id}
+   saveLesson(l);closeSheet();toast("Gespeichert.");
+  };
+ });
+}
+function openAppt(date,sid){
+ const L=students().filter(s=>s.status==="aktiv");
+ if(!L.length){toast("Lege zuerst einen Schüler an.");return}
+ const first=sid?D.students[sid]:L[0];
+ openSheet(`${sheetHead("Einzeltermin",fmtLong(date))}
+  <form id="af" novalidate style="display:flex;flex-direction:column;gap:16px">
+  <div class="field"><label for="a_s">Schüler</label><select class="inp" id="a_s" name="sid">${L.map(s=>`<option value="${h(s.id)}" ${first&&s.id===first.id?"selected":""}>${h(s.name)}</option>`).join("")}</select></div>
+  <div class="three"><div class="field"><label for="a_d">Datum</label><input class="inp" id="a_d" type="date" name="date" value="${h(date)}"></div><div class="field"><label for="a_t">Uhrzeit</label><input class="inp" id="a_t" type="time" name="time" value="16:00"></div><div class="field"><label for="a_du">Dauer</label><select class="inp" id="a_du" name="dur">${[30,45,60].map(d=>`<option value="${d}" ${first&&+first.dur===d?"selected":""}>${d} Min.</option>`).join("")}</select></div></div>
+  <p class="hint">Für Stunden außer der Reihe. Feste wöchentliche Termine trägst du beim Schüler ein.</p>
+  <div class="foot"><div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Termin anlegen</button></div></div></form>`,p=>{
+  const f=$("#af",p);
+  f.addEventListener("change",e=>{if(e.target.name==="sid"){const s=D.students[e.target.value];if(s)$("#a_du",p).value=String(s.dur)}});
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(b&&b.dataset.sact==="close")closeSheet()};
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.date||!v.time){toast("Bitte Datum und Uhrzeit eintragen.");return}
+   saveLesson({id:"e_"+newId(),sid:v.sid,date:v.date,time:v.time,dur:+v.dur,kind:"einzel",status:"offen",note:""});closeSheet();toast("Termin angelegt.")};
+ });
+}
+/* ----- Zehnerkarte ----- */
+function openCard(sid,cid){
+ const st=D.students[sid];if(!st)return;const isNew=!cid;
+ const last=(st.cards||[]).slice(-1)[0];
+ const c=isNew?{id:newId(),size:last?(+last.size||10):10,bought:todayStr(),price:null,paid:false,preUsed:0}:Object.assign({},(st.cards||[]).find(x=>x.id===cid));
+ const first=!(st.cards||[]).length;
+ if(isNew)c.price=D.settings.cardPrice[c.size]??null;
+ openSheet(`${sheetHead(isNew?"Neue Karte":"Karte ändern",h(st.name))}
+  <form id="cf" novalidate style="display:flex;flex-direction:column;gap:16px">
+  <div class="field"><span class="lbl">Karte</span>${seg("size",[[10,"10er-Karte"],[5,"5er-Karte"]],c.size||10)}</div>
+    <div class="two"><div class="field"><label for="c_b">Gekauft am</label><input class="inp" id="c_b" type="date" name="bought" value="${h(c.bought)}"></div><div class="field"><label for="c_p">Preis</label><input class="inp" id="c_p" name="price" inputmode="decimal" value="${h(c.price==null?"":c.price)}" placeholder="€"></div></div>
+  <label class="cbline"><input type="checkbox" name="paid" ${c.paid?"checked":""}> Bezahlt</label>
+  ${first||+c.preUsed?`<div class="field"><label for="c_u">Davon schon verbraucht</label><input class="inp" id="c_u" type="number" min="0" max="10" name="preUsed" value="${h(c.preUsed||0)}" style="max-width:120px"><p class="hint">Nur wenn du eine angefangene Karte aus Tap Forms übernimmst. Sonst 0 lassen.</p></div>`:""}
+  <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Karte löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
+  const f=$("#cf",p);let priceTouched=!isNew;$("#c_p",p).addEventListener("input",()=>priceTouched=true);
+  f.addEventListener("change",e=>{if(e.target.name==="size"&&!priceTouched){const pr=D.settings.cardPrice[+e.target.value];$("#c_p",p).value=pr==null?"":pr}});
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="del")confirmSheet("Karte löschen?","Die Karte wird entfernt. Die Stunden selbst bleiben erhalten.","Löschen",()=>{st.cards=st.cards.filter(x=>x.id!==c.id);changed()})};
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);c.size=+v.size||10;c.bought=v.bought||todayStr();c.price=num(v.price);c.paid=!!v.paid;c.preUsed=Math.max(0,Math.min(c.size,+v.preUsed||0));
+   st.cards=st.cards||[];const i=st.cards.findIndex(x=>x.id===c.id);if(i>=0)st.cards[i]=c;else st.cards.push(c);
+   changed();closeSheet();toast("Karte gespeichert.")};
+ });
+}
+/* ----- Erinnerung ----- */
+function openReminder(sid){
+ const L=students().filter(s=>s.status==="aktiv");
+ openSheet(`${sheetHead("Erinnerung")}
+  <form id="rf" novalidate style="display:flex;flex-direction:column;gap:16px">
+  <div class="field"><label for="r_t">Woran soll ich dich erinnern?</label><input class="inp" id="r_t" name="text" placeholder="z. B. Noten kopieren, Playback aufnehmen" autocomplete="off" autofocus></div>
+  <div class="field"><label for="r_s">Für</label><select class="inp" id="r_s" name="sid"><option value="">Allgemein (kein Schüler)</option>${L.map(s=>`<option value="${h(s.id)}" ${s.id===sid?"selected":""}>${h(s.name)}</option>`).join("")}</select><p class="hint">Erinnerungen für einen Schüler siehst du bei seiner nächsten Stunde.</p></div>
+  <div class="foot"><div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Merken</button></div></div></form>`,p=>{
+  const f=$("#rf",p);p.onclick=e=>{const b=e.target.closest("[data-sact]");if(b&&b.dataset.sact==="close")closeSheet()};
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.text.trim())return;const r={id:newId(),sid:v.sid||null,text:v.text.trim(),done:false,created:todayStr()};D.reminders[r.id]=r;changed();closeSheet();toast("Gemerkt.")};
+ });
+}
+/* ----- Konzert / Termin ----- */
+function openEvent(id,type,date){
+ const isNew=!id||!D.events[id];
+ const ev=isNew?{id:newId(),title:"",type:type||"konzert",date:date||todayStr(),time:"",place:"",sids:[],note:""}:JSON.parse(JSON.stringify(D.events[id]));
+ const L=students().filter(s=>s.status==="aktiv"||(ev.sids||[]).includes(s.id));
+ openSheet(`${sheetHead(isNew?"Neuer Termin":"Termin bearbeiten")}
+  <form id="ef" novalidate style="display:flex;flex-direction:column;gap:16px">
+  <div class="field"><label for="e_t">Titel</label><input class="inp" id="e_t" name="title" value="${h(ev.title)}" placeholder="z. B. Schülerkonzert im Advent" autocomplete="off"></div>
+  <div class="field"><span class="lbl">Art</span>${seg("type",[["konzert","Konzert"],["probe","Probe"],["vorspiel","Vorspiel"],["musikschule","Musikschule"],["sonstiges","Sonstiges"]],ev.type)}</div>
+  <div class="two"><div class="field"><label for="e_d">Datum</label><input class="inp" id="e_d" type="date" name="date" value="${h(ev.date)}"></div><div class="field"><label for="e_ti">Uhrzeit</label><input class="inp" id="e_ti" type="time" name="time" value="${h(ev.time||"")}"></div></div>
+  <div class="field"><label for="e_p">Ort</label><input class="inp" id="e_p" name="place" value="${h(ev.place||"")}" autocomplete="off"></div>
+  <div class="field"><span class="lbl">Wer singt mit?</span>${L.length?`<div class="plist">${L.map(s=>`<label class="cbline"><input type="checkbox" name="p_${h(s.id)}" ${(ev.sids||[]).includes(s.id)?"checked":""}> ${h(s.name)}</label>`).join("")}</div>`:`<p class="hint">Noch keine aktiven Schüler.</p>`}</div>
+  <div class="field"><label for="e_n">Notizen</label><textarea class="inp" id="e_n" name="note" placeholder="Programm, Probe, Mitbringen …">${h(ev.note||"")}</textarea></div>
+  <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
+  const f=$("#ef",p);
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="del")confirmSheet("Termin löschen?",`„${h(ev.title||EVT[ev.type])}“ wird entfernt.`,"Löschen",()=>{delete D.events[ev.id];changed()})};
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.date){toast("Bitte ein Datum eintragen.");return}
+   ev.title=v.title.trim()||EVT[v.type];ev.type=v.type;ev.date=v.date;ev.time=v.time;ev.place=v.place.trim();ev.note=v.note.trim();ev.sids=Object.keys(v).filter(k=>k.startsWith("p_")&&v[k]).map(k=>k.slice(2));
+   D.events[ev.id]=ev;changed();closeSheet();toast("Gespeichert.")};
+ });
+}
+
+/* ================= Sicherung ================= */
+async function exportBackup(){
+ saveNow();
+ const name=`Schuelerbuch-Sicherung-${todayStr()}.json`;
+ const json=JSON.stringify({app:"schuelerbuch",version:1,exported:new Date().toISOString(),data:D});
+ let file;try{file=new File([json],name,{type:"application/json"})}catch(e){file=null}
+ try{
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});markBackup();return}
+ }catch(e){if(e&&e.name==="AbortError"){toast("Sicherung abgebrochen.");return}if(S.standalone){toast("Sichern hat nicht geklappt. Bitte noch einmal tippen.");return}}
+ if(S.standalone){toast("Dieses Gerät kann die Sicherung nicht teilen.");return}
+ try{
+  const url=URL.createObjectURL(file||new Blob([json],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),8000);
+  if(S.framed){toast("In der Vorschau ist Sichern nicht möglich – auf dem iPad dann schon.");return}
+  markBackup();
+ }catch(e){toast("Sichern hat hier nicht geklappt.")}
+}
+function markBackup(){D.meta.lastBackup=todayStr();changed();toast("Sicherung erstellt.")}
+$("#importFile").addEventListener("change",async e=>{
+ const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
+ let obj;try{obj=JSON.parse(await file.text())}catch(err){toast("Diese Datei ist keine Schülerbuch-Sicherung.");return}
+ if(!obj||obj.app!=="schuelerbuch"||!obj.data){toast("Diese Datei ist keine Schülerbuch-Sicherung.");return}
+ const n=Object.keys(obj.data.students||{}).length;
+ confirmSheet("Sicherung einspielen?",`Die Sicherung vom <b>${fmtD(String(obj.exported||"").slice(0,10))}</b> enthält <b>${n} Schüler</b>. Alle Daten, die jetzt in der App sind, werden dadurch <b>ersetzt</b>.`,"Einspielen",async()=>{
+  try{await Store.set("state_before_import",JSON.parse(JSON.stringify(D)))}catch(e){}
+  D=normalize(obj.data);changed();await saveNow();toast("Sicherung eingespielt.");go("home");
+ });
+});
+
+/* ================= Beispieldaten ================= */
+function loadSample(){
+ const t=todayStr();const start=addDays(mondayOf(t),-28);
+ const mk=(name,o)=>{const s=Object.assign(blankStudent(),{name:"Beispiel: "+name,example:true,start},o);s.slots=(o.slots||[]).map(x=>Object.assign({id:newId(),rh:"1",from:start},x));D.students[s.id]=s;return s};
+ const a=mk("Anna Berger",{billing:"durch",dur:45,price:95,slots:[{wd:2,time:"16:00"}],notes:"Mezzosopran. Ziel: Aufnahmeprüfung Musical im Frühjahr."});
+ const b=mk("Ben Kraus",{billing:"zehner",dur:45,slots:[{wd:3,time:"17:00"}]});
+ const c=mk("Clara Hofmann",{billing:"durch",dur:60,price:125,slots:[{wd:4,time:"18:00",rh:"2"}]});
+ const d=mk("David Neumann",{billing:"ms",dur:45,slots:[{wd:1,time:"15:30"}]});
+ const e=mk("Emma Schulz",{billing:"zehner",dur:45,slots:[{wd:5,time:"10:30"}]});
+ mk("Felix Wagner",{status:"warteliste",waitSince:addDays(t,-20),waitWish:"Mo oder Mi ab 17 Uhr",slots:[]});
+ mk("Greta Lorenz",{status:"archiviert",archivedAt:addDays(t,-60),billing:"durch",dur:45,price:90,slots:[]});
+ b.cards=[{id:newId(),size:5,bought:start,price:210,paid:true,preUsed:0}];
+ e.cards=[{id:newId(),size:10,bought:addDays(start,-21),price:380,paid:false,preUsed:5}];
+ mk("Hanna Roth",{billing:"einzeln",dur:45,price:45,slots:[{wd:3,time:"18:30",rh:"2"}]});
+ a.paid={[ym(addDays(t,-31))]:true};c.paid={[ym(addDays(t,-31))]:true,[ym(t)]:true};
+ ver++;
+ const notes=["Atemübungen, Lippenflattern, Stück ab Takt 17","Registerwechsel geübt, Lied auswendig bis Strophe 2","Neues Stück angefangen, Text sprechen","Aufnahme gemacht, Intonation in der Höhe"];
+ let i=0;
+ for(let k=28;k>=1;k--){const day=addDays(t,-k);for(const l of lessonsOn(day)){const st=D.students[l.sid];if(!st||!st.example)continue;
+  if(k<=3)continue;
+  if(st===c&&k>14&&k<=21){saveLessonRaw(Object.assign({},l,{status:"abgesagt",by:"ich",nachholen:true,example:true}));continue}
+  saveLessonRaw(Object.assign({},l,{status:"gehalten",note:notes[i++%notes.length],paid:st.billing==="einzeln"&&k>10,example:true}))}}
+ const r1={id:newId(),sid:a.id,text:"Noten „Defying Gravity“ in Es-Dur ausdrucken",done:false,created:t,example:true};
+ const r2={id:newId(),sid:e.id,text:"Playback für das Vorspiel aufnehmen",done:false,created:t,example:true};
+ D.reminders[r1.id]=r1;D.reminders[r2.id]=r2;
+ const ev1={id:newId(),title:"Adventskonzert meiner Schüler",type:"konzert",date:addDays(t,27),time:"17:00",place:"Gemeindesaal",sids:[a.id,c.id,e.id],note:"Probe eine Woche vorher",example:true};
+ const ev2={id:newId(),title:"Vorspiel der Musikschule",type:"musikschule",date:addDays(t,12),time:"18:00",place:"Musikschule, Saal",sids:[d.id],note:"",example:true};
+ D.events[ev1.id]=ev1;D.events[ev2.id]=ev2;
+ changed();toast("Beispielschüler geladen.");
+}
+function saveLessonRaw(l){const c=cleanLesson(l);c.example=true;D.lessons[c.id]=c;ver++}
+function removeSample(){
+ const ids=new Set(Object.values(D.students).filter(s=>s.example).map(s=>s.id));
+ for(const id of ids)delete D.students[id];
+ for(const [k,l] of Object.entries(D.lessons))if(l.example||ids.has(l.sid))delete D.lessons[k];
+ for(const [k,r] of Object.entries(D.reminders))if(r.example||ids.has(r.sid))delete D.reminders[k];
+ for(const [k,e] of Object.entries(D.events))if(e.example)delete D.events[k];
+ changed();toast("Beispielschüler entfernt.");
+}
+
+/* ================= Aktionen ================= */
+const ACT={
+ nav:d=>go(d.view),
+ student:d=>go("student",d.id),
+ back:()=>go(S.from&&S.from!=="student"?S.from:"students"),
+ weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
+ payPrev:()=>{S.payMonth=addMonths(S.payMonth,-1);render()},payNext:()=>{S.payMonth=addMonths(S.payMonth,1);render()},
+ lesson:d=>openLesson(d.id),
+ held:d=>markHeld(d.id),
+ cancel:d=>openLesson(d.id,{status:"abgesagt"}),
+ addAppt:d=>openAppt(d.date||todayStr(),d.sid),
+ newStudent:()=>openStudentForm(),
+ editStudent:d=>openStudentForm(d.id),
+ takeIn:d=>openStudentForm(d.id,{status:"aktiv",start:todayStr()}),
+ filter:d=>{S.filter=d.f;S.search="";render()},
+ filterGo:d=>{S.filter=d.f;S.search="";go("students")},
+ newCard:d=>openCard(d.sid),editCard:d=>openCard(d.sid,d.cid),
+ cardPaid:d=>{const st=D.students[d.sid];const c=st&&(st.cards||[]).find(x=>x.id===d.cid);if(c){c.paid=!c.paid;changed()}},
+ allHeld:()=>confirmSheet("Alle als gehalten abhaken?",`${pastOpen().length} vergangene Stunden werden als <b>gehalten</b> markiert. Bei Zehnerkarten wird jeweils eine Stunde abgezogen. Abgesagte Stunden vorher bitte einzeln als abgesagt markieren.`,"Alle abhaken",()=>{for(const l of pastOpen())D.lessons[l.id]=cleanLesson(Object.assign({},l,{status:"gehalten"}));changed();toast("Erledigt.")},false),
+ strike:d=>{const st=D.settings.struck;if(st[d.d])delete st[d.d];else st[d.d]=true;changed()},
+ yearPrev:()=>{S.planYear--;render()},yearNext:()=>{S.planYear++;render()},
+ autoPlan:()=>autoPlan(),
+ resetYear:()=>confirmSheet(`Streichungen ${S.planYear} zurücksetzen?`,"Alle gestrichenen Tage dieses Jahres werden wieder zu Unterrichtstagen.","Zurücksetzen",()=>{for(const d of Object.keys(D.settings.struck))if(d.startsWith(String(S.planYear)))delete D.settings.struck[d];changed()}),
+ termsPdf:()=>termsPdf(),freeDaysPdf:()=>freeDaysPdf(),
+ reactivate:d=>{const s=D.students[d.id];if(!s)return;s.status="aktiv";delete s.pauseUntil;delete s.pauseNote;changed();toast(`${s.name} ist wieder aktiv.`)},
+ lessonPaid:d=>{const l=D.lessons[d.id];if(l){l.paid=!l.paid;changed()}},
+ monthPaid:d=>{const st=D.students[d.sid];if(!st)return;st.paid=st.paid||{};if(st.paid[d.m])delete st.paid[d.m];else st.paid[d.m]=true;changed()},
+ remToggle:d=>{const r=D.reminders[d.id];if(r){r.done=!r.done;r.doneAt=r.done?todayStr():null;changed();if(r.done)toast("Erledigt.","Rückgängig",()=>{r.done=false;r.doneAt=null;changed()})}},
+ remDel:d=>{const r=D.reminders[d.id];if(!r)return;delete D.reminders[d.id];changed();toast("Erinnerung gelöscht.","Rückgängig",()=>{D.reminders[r.id]=r;changed()})},
+ addRem:d=>openReminder(d.sid||null),
+ newEvent:d=>openEvent(null,d.type,d.date),event:d=>openEvent(d.id),
+ histAll:()=>{S.histAll=true;render()},pastEv:()=>{S.showPastEv=true;render()},
+ backup:()=>exportBackup(),import:()=>$("#importFile").click(),
+ sample:()=>loadSample(),removeSample:()=>confirmSheet("Beispielschüler entfernen?","Alle mit „Beispiel:“ markierten Schüler und ihre Stunden, Erinnerungen und Termine werden entfernt. Deine echten Schüler bleiben.","Entfernen",removeSample),
+ freeAdd:()=>{D.settings.free.push({id:newId(),name:"Urlaub",from:todayStr(),to:todayStr()});changed()},
+ freeDel:d=>{D.settings.free=D.settings.free.filter(f=>f.id!==d.id);changed()}
+};
+document.addEventListener("click",e=>{
+ if(e.target.closest("#sheet"))return;
+ const el=e.target.closest("[data-act]");if(!el)return;const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();fn(el.dataset,el,e);
+});
+$("#main").addEventListener("input",e=>{if(e.target.id==="search"){S.search=e.target.value;$("#slist").innerHTML=studentList()}});
+$("#main").addEventListener("change",e=>{
+ const t=e.target;const st=D.settings;
+ if(t.dataset.free){const f=st.free.find(x=>x.id===t.dataset.free);if(f){f[t.dataset.field]=t.value;changed()}}
+ else if(t.dataset.price){st.prices[t.dataset.price]=t.value.split(/[;,]\s*|\s+/).map(num).filter(x=>x!=null);changed()}
+ else if(t.dataset.cardprice){st.cardPrice[t.dataset.cardprice]=num(t.value);changed()}
+ else if(t.hasAttribute("data-singleprice")){st.singlePrice=num(t.value);changed()}
+ else if(t.hasAttribute("data-termsfor")){S.termsFor=t.value;t.blur();render()}
+ else if(t.dataset.prof){D.settings.profile[t.dataset.prof]=t.value.trim();changed()}
+ else if(t.hasAttribute("data-target")){D.settings.yearTarget=Math.max(1,+t.value||36);changed()}
+ else if(t.hasAttribute("data-warn")){st.warn=Math.max(0,+t.value||0);changed()}
+ else if(t.dataset.day){const d=+t.dataset.day;st.days=t.checked?[...new Set([...st.days,d])].sort():st.days.filter(x=>x!==d);changed()}
+});
+
+/* ================= Start ================= */
+(async function init(){
+ await Store.open();
+ let loaded;try{loaded=await Store.get("state")}catch(e){loaded=null}
+ D=normalize(loaded);S.planYear=defaultPlanYear();
+ if(loaded){try{const lastCopy=await Store.get("copyDay");if(lastCopy!==todayStr()){await Store.set("state_prev",loaded);await Store.set("copyDay",todayStr())}}catch(e){}}
+ try{if(navigator.storage&&navigator.storage.persist&&!S.framed){S.persisted=await navigator.storage.persist()}}catch(e){}
+ S.ready=true;ver++;render();
+ if("serviceWorker" in navigator&&location.protocol==="https:"&&!S.framed){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+ // Datum aktuell halten, wenn die App über Nacht offen bleibt
+ let day=todayStr();setInterval(()=>{if(todayStr()!==day){day=todayStr();S.week=mondayOf(day);ver++;render()}},60000);
+})();
+</script>
+</body>
+</html>
