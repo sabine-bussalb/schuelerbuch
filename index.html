@@ -141,6 +141,7 @@ img.av{object-fit:cover;display:block;background:var(--line)}
 .mbtn small{font-weight:400;color:var(--muted);font-size:12px}
 .mbtn.paid{background:var(--good-soft);border-color:transparent;color:var(--good)}
 .mbtn.paid small{color:var(--good)}
+.mbtn.skip{background:var(--bg);color:var(--muted);border-style:dashed}
 .check{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;flex:none;background:var(--surface);cursor:pointer;padding:0}
 .check.on{background:var(--good);border-color:var(--good);color:#fff}
 .remrow{display:flex;gap:12px;align-items:center;padding:10px 14px}
@@ -203,6 +204,14 @@ details.more[open] summary{margin-bottom:10px}
 .welcome h2{font-family:var(--font-display);text-transform:none;letter-spacing:0;font-size:24px;color:var(--ink);font-weight:600}
 .welcome p{margin:0;max-width:60ch}
 .staff{height:22px;background:repeating-linear-gradient(180deg,var(--line) 0 1px,transparent 1px 5px);opacity:.9;border-radius:2px;margin-top:4px}
+/* Statistik */
+.bars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;align-items:end}
+.bar{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.bv{height:120px;width:100%;max-width:34px;background:var(--bg);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}
+.bv span{display:block;width:100%;background:var(--accent);border-radius:6px 6px 0 0}
+.bl{font-size:12px;color:var(--muted)}
+.bn{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-height:14px}
+@media (max-width:700px){.bn{display:none}}
 /* Jahresplan */
 .ymonth{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;padding:6px 0;border-top:1px solid var(--line)}
 .ymonth:first-child{border-top:0}
@@ -364,7 +373,7 @@ function normalize(d){
 }
 
 /* ================= Zustand der Oberfläche ================= */
-const S={view:"home",arg:null,from:"home",week:wd(todayStr())===7?addDays(todayStr(),1):mondayOf(todayStr()),filter:"aktiv",search:"",payMonth:ym(todayStr()),showDoneRem:false,showPastEv:false,saveErr:null,ready:false,framed:false,persisted:null,planYear:null,termsFor:""};
+const S={view:"home",arg:null,from:"home",week:wd(todayStr())===7?addDays(todayStr(),1):mondayOf(todayStr()),filter:"aktiv",search:"",payMonth:ym(todayStr()),showDoneRem:false,showPastEv:false,saveErr:null,ready:false,framed:false,persisted:null,planYear:null,termsFor:"",statYear:+todayStr().slice(0,4)};
 try{S.framed=window.self!==window.top}catch(e){S.framed=true}
 S.standalone=!!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));
 S.ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
@@ -405,6 +414,10 @@ function cardStats(st){
  return{cards,total,used,remaining:total-used,current,curUsed,over:current?0:left,last:cards[cards.length-1],expires};
 }
 function cardExpiry(c){if(!c||!c.bought)return null;const d=parse(c.bought);d.setFullYear(d.getFullYear()+1);return addDays(ymd(d),-1)}
+function pauseRanges(st){const r=(st.pauses||[]).slice();if(st.status==="pausiert"&&st.pauseFrom)r.push({from:st.pauseFrom,to:null});return r}
+function monthPaused(st,m){return pauseRanges(st).some(p=>p.from&&ym(p.from)<=m&&(!p.to||m<ym(p.to)))}
+function monthState(st,m){const v=(st.paid||{})[m];if(v==="x")return"entfaellt";if(v)return"bezahlt";if(monthPaused(st,m))return"pausiert";return"offen"}
+const MSTATE={offen:"offen",bezahlt:"bezahlt",pausiert:"pausiert",entfaellt:"entfällt"};
 const openRem=sid=>Object.values(D.reminders).filter(r=>!r.done&&(sid===undefined||r.sid===sid)).sort((a,b)=>(a.created||"").localeCompare(b.created||""));
 function eventsOn(d){return cached("ev"+d,()=>Object.values(D.events).filter(e=>e.date===d).sort((a,b)=>(a.time||"").localeCompare(b.time||"")))}
 function nextLessons(sid,n=3){const out=[];const t=todayStr();for(let i=0;i<70&&out.length<n;i++){const d=addDays(t,i);for(const l of lessonsOn(d))if(l.sid===sid&&l.status==="offen")out.push(l)}return out.slice(0,n)}
@@ -478,7 +491,7 @@ VIEWS.home=()=>{
  if(pe.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Pause endet</b> – wieder in den Stundenplan aufnehmen?</p>${pe.map(s=>`<div class="srow">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">Pausiert bis ${fmtD(s.pauseUntil)}</div></div><button class="btn sm" data-act="reactivate" data-id="${h(s.id)}">${icon("check")} Wieder aktiv</button></div>`).join("")}</div>`);
  const nh=Object.values(D.lessons).filter(l=>l.status==="abgesagt"&&l.nachholen&&!l.nachholId&&D.students[l.sid]).sort((a,b)=>a.date.localeCompare(b.date));
  if(nh.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Nachholen</b> – Termin fehlt noch</p>${nh.map(l=>lessonRow(l,true)).join("")}</div>`);
- const m=ym(t);const unpaid=activeStudents().filter(s=>s.billing==="durch"&&!(s.paid||{})[m]);
+ const m=ym(t);const unpaid=activeStudents().filter(s=>s.billing==="durch"&&monthState(s,m)==="offen");
  const unpaidCards=activeStudents().flatMap(s=>(s.cards||[]).filter(c=>!c.paid).map(c=>[s,c]));
  const unpaidSingle=Object.values(D.lessons).filter(l=>l.status==="gehalten"&&!l.paid&&D.students[l.sid]&&D.students[l.sid].billing==="einzeln");
  if(unpaid.length||unpaidCards.length||unpaidSingle.length)todo.push(`<div class="card pad" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><b>Zahlungen ${MON[+m.slice(5)-1]}</b><div class="muted">${unpaid.length?`${unpaid.length} Durchzahler noch offen`:"Alle Durchzahler bezahlt"}${unpaidCards.length?` · ${unpaidCards.length} Karte(n) unbezahlt`:""}${unpaidSingle.length?` · ${unpaidSingle.length} Einzelstunde(n) offen`:""}</div></div><button class="btn" data-act="nav" data-view="pay">Ansehen ${icon("right")}</button></div>`);
@@ -568,6 +581,7 @@ VIEWS.student=()=>{
  if(st.start)facts.push(["Unterricht seit",fmtD(st.start)]);
  if(st.status==="warteliste")facts.push(["Wartet seit",st.waitSince?fmtD(st.waitSince):"–"],["Wunsch",st.waitWish||"–"]);
  if(st.status==="archiviert"&&st.archivedAt)facts.push(["Archiviert seit",fmtD(st.archivedAt)]);
+ if(st.status==="pausiert"&&st.pauseFrom)facts.push(["Pausiert seit",fmtD(st.pauseFrom)]);
  if(st.status==="pausiert")facts.push(["Pausiert bis",st.pauseUntil?fmtD(st.pauseUntil):"offen"]),st.pauseNote&&facts.push(["Grund",st.pauseNote]);
  out+=`<div class="card"><dl class="facts" style="margin:0">${facts.map(([k,v])=>`<div><dt>${k}</dt><dd>${h(v)}</dd></div>`).join("")}</dl></div>`;
  if(st.notes)out+=block("Notizen",`<div class="card pad" style="white-space:pre-wrap">${h(st.notes)}</div>`);
@@ -587,7 +601,7 @@ VIEWS.student=()=>{
  // Zahlungen Durchzahler
  if(st.billing==="durch"){
   const cur=ym(t);const start=st.start?ym(st.start):cur;let ms=[];for(let i=0;i<12;i++){const m=addMonths(cur,-i);if(m<start&&i>0)break;ms.push(m)}ms.reverse();
-  out+=block("Zahlungen",`<div class="card"><div class="months">${ms.map(m=>{const p=(st.paid||{})[m];return`<button class="mbtn ${p?"paid":""}" data-act="monthPaid" data-sid="${h(st.id)}" data-m="${m}" aria-pressed="${!!p}">${fmtYMs(m)}<small>${p?"bezahlt":"offen"}</small></button>`}).join("")}</div></div>`);
+  out+=block("Zahlungen",`<div class="card"><div class="months">${ms.map(m=>{const q=monthState(st,m);return`<button class="mbtn ${q==="bezahlt"?"paid":q!=="offen"?"skip":""}" data-act="monthCycle" data-sid="${h(st.id)}" data-m="${m}">${fmtYMs(m)}<small>${MSTATE[q]}</small></button>`}).join("")}</div><p class="muted" style="margin:0 16px 14px;font-size:14px">Antippen wechselt: offen → bezahlt → entfällt. Monate in einer Pause zeigen „pausiert“.</p></div>`);
  }
  // Erinnerungen
  const rs=Object.values(D.reminders).filter(r=>r.sid===st.id).sort((a,b)=>(a.done-b.done)||(a.created||"").localeCompare(b.created||""));
@@ -599,8 +613,8 @@ VIEWS.student=()=>{
  return out;
 };
 VIEWS.pay=()=>{
- const m=S.payMonth;const durch=students().filter(s=>s.billing==="durch"&&(s.status==="aktiv"||(s.paid||{})[m]));
- const exp=durch.filter(s=>s.status==="aktiv").reduce((a,s)=>a+(+s.price||0),0);const got=durch.filter(s=>(s.paid||{})[m]).reduce((a,s)=>a+(+s.price||0),0);
+ const m=S.payMonth;const durch=students().filter(s=>s.billing==="durch"&&((s.status==="aktiv"&&!["pausiert","entfaellt"].includes(monthState(s,m)))||monthState(s,m)==="bezahlt"));
+ const exp=durch.reduce((a,s)=>a+(monthState(s,m)==="bezahlt"?paidAmount(s,m):(+s.price||0)),0);const got=durch.reduce((a,s)=>a+paidAmount(s,m),0);
  const cards=students().flatMap(s=>(s.cards||[]).map(c=>[s,c])).filter(([s,c])=>!c.paid||ym(c.bought||"")===m).sort((a,b)=>(a[1].bought||"").localeCompare(b[1].bought||""));
  const cardGot=cards.filter(([s,c])=>c.paid&&ym(c.bought||"")===m).reduce((a,[s,c])=>a+(+c.price||0),0);
  const singles=Object.values(D.lessons).filter(l=>l.status==="gehalten"&&D.students[l.sid]&&D.students[l.sid].billing==="einzeln"&&(ym(l.date)===m||(!l.paid&&ym(l.date)<m))).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -609,7 +623,7 @@ VIEWS.pay=()=>{
  <div class="weeknav"><button class="btn" data-act="payPrev" aria-label="Voriger Monat">${icon("left")}</button><span class="title">${fmtYM(m)}</span><button class="btn" data-act="payNext" aria-label="Nächster Monat">${icon("right")}</button></div></header>
  ${topBanners()}
  <div class="sum"><div class="card"><div class="lbl">Durchzahler erwartet</div><div class="big">${euro(exp)}</div></div><div class="card"><div class="lbl">Durchzahler eingegangen</div><div class="big" style="color:var(--good)">${euro(got)}</div></div><div class="card"><div class="lbl">Karten bezahlt (${MONS[+m.slice(5)-1]})</div><div class="big">${euro(cardGot)}</div></div><div class="card"><div class="lbl">Einzelstunden bezahlt (${MONS[+m.slice(5)-1]})</div><div class="big">${euro(singleGot)}</div></div></div>
- ${block(`Durchzahler · ${durch.filter(s=>!(s.paid||{})[m]).length} offen`,`<div class="card list paytable">${durch.length?durch.map(s=>{const p=(s.paid||{})[m];return`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">${s.dur}′</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(s.price)}</div><button class="check ${p?"on":""}" data-act="monthPaid" data-sid="${h(s.id)}" data-m="${m}" aria-label="${h(s.name)} bezahlt">${p?icon("check"):""}</button></div>`}).join(""):`<p class="none">Keine Durchzahler.</p>`}</div>`)}
+ ${block(`Durchzahler · ${durch.filter(s=>monthState(s,m)==="offen").length} offen`,`<div class="card list paytable">${durch.length?durch.map(s=>{const p=(s.paid||{})[m];return`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">${s.dur}′</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(s.price)}</div><button class="check ${p?"on":""}" data-act="monthPaid" data-sid="${h(s.id)}" data-m="${m}" aria-label="${h(s.name)} bezahlt">${p?icon("check"):""}</button></div>`}).join(""):`<p class="none">Keine Durchzahler.</p>`}</div>`)}
  ${singles.length?block(`Einzelstunden · ${singles.filter(l=>!l.paid).length} offen`,`<div class="card list paytable">${singles.map(l=>{const s=D.students[l.sid];return`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">Stunde am ${WDS[wd(l.date)]} ${fmtD(l.date)}</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(s.price)}</div><button class="check ${l.paid?"on":""}" data-act="lessonPaid" data-id="${h(l.id)}" aria-label="Stunde bezahlt">${l.paid?icon("check"):""}</button></div>`}).join("")}</div>`):""}
  ${block("Zehner- und Fünferkarten",`<div class="card list paytable">${cards.length?cards.map(([s,c])=>`<div class="prow">${avatar(s)}<div><div class="lname" data-act="student" data-id="${h(s.id)}" style="cursor:pointer">${h(s.name)}</div><div class="muted" style="font-size:14px">${c.size||10}er-Karte vom ${fmtD(c.bought)}</div></div><div style="font-variant-numeric:tabular-nums;font-weight:600">${euro(c.price)}</div><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(s.id)}" data-cid="${h(c.id)}" aria-label="Karte bezahlt">${c.paid?icon("check"):""}</button></div>`).join(""):`<p class="none">Keine offenen Karten und keine Käufe in diesem Monat.</p>`}</div>`)}
  <p class="muted" style="margin:0;font-size:15px">Musikschul-Schüler erscheinen hier nicht, weil die Musikschule mit ihnen abrechnet.</p>`;
@@ -670,6 +684,7 @@ VIEWS.more=()=>{
  <div class="card list">
   ${card("year","cal",`Jahresplan ${y}`,open?`Noch ${open} Tag${open===1?"":"e"} zu streichen, damit jeder Wochentag ${D.settings.yearTarget} Stunden hat`:`Alle Wochentage haben ${D.settings.yearTarget} Stunden`)}
   ${card("terms","text",`Unterrichtsbedingungen ${y}`,"Ansehen, als PDF drucken oder an Schüler schicken")}
+  ${card("stats","euro",`Jahresübersicht ${S.statYear}`,"Einnahmen, Stunden und Schüler im Wirtschaftsjahr")}
   ${card("settings","sliders","Einstellungen & Sicherung","Ferien, Preise, Bankverbindung, Datensicherung")}
  </div>`;
 };
@@ -803,6 +818,59 @@ function freeDaysPdf(){withPdf(()=>{
  sharePdf(P.doc,`Unterrichtsfreie-Tage-${y}.pdf`);
 })}
 
+/* ================= Jahresstatistik ================= */
+function paidAmount(s,m){const v=(s.paid||{})[m];if(!v||v==="x")return 0;return typeof v==="number"?v:(+s.price||0)}
+function yearStats(y){return cached("ys"+y,()=>{
+ const Y=String(y),months=[...Array(12)].map((_,i)=>`${Y}-${pad(i+1)}`);
+ const inc={durch:Array(12).fill(0),karten:Array(12).fill(0),einzeln:Array(12).fill(0)},held=Array(12).fill(0);
+ const all=Object.values(D.students);
+ for(const s of all){months.forEach((m,i)=>{if(s.billing==="durch"||(s.paid&&s.paid[m]))inc.durch[i]+=paidAmount(s,m)});
+  for(const c of s.cards||[])if(c.paid&&(c.bought||"").startsWith(Y))inc.karten[+c.bought.slice(5,7)-1]+=(+c.price||0)}
+ const L=Object.values(D.lessons).filter(l=>l.date&&l.date.startsWith(Y)&&D.students[l.sid]);
+ const H=L.filter(l=>l.status==="gehalten"),A=L.filter(l=>l.status==="abgesagt");
+ for(const l of H){held[+l.date.slice(5,7)-1]++;const s=D.students[l.sid];if(s.billing==="einzeln"&&l.paid)inc.einzeln[+l.date.slice(5,7)-1]+=(+s.price||0)}
+ const byBill={};for(const l of H){const b=D.students[l.sid].billing;byBill[b]=(byBill[b]||0)+1}
+ const minutes=H.reduce((a,l)=>a+(+l.dur||+D.students[l.sid].dur||0),0);
+ const sids=new Set(H.map(l=>l.sid));
+ const neu=all.filter(s=>s.start&&s.start.startsWith(Y)&&s.status!=="warteliste").length;
+ const ende=all.filter(s=>s.archivedAt&&s.archivedAt.startsWith(Y)).length;
+ const total=[...inc.durch,...inc.karten,...inc.einzeln].reduce((a,b)=>a+b,0);
+ const perMonth=months.map((_,i)=>inc.durch[i]+inc.karten[i]+inc.einzeln[i]);
+ const groups=new Set(H.filter(l=>D.students[l.sid].kind==="gruppe").map(l=>l.sid)).size;
+ return{y,months,inc,held,H,A,byBill,minutes,students:sids.size,neu,ende,total,perMonth,groups,
+  cancS:A.filter(l=>l.by==="schueler").length,cancI:A.filter(l=>l.by==="ich").length,nach:H.filter(l=>l.kind==="nachhol").length};
+})}
+VIEWS.stats=()=>{
+ const y=S.statYear,st=yearStats(y),maxI=Math.max(1,...st.perMonth),maxH=Math.max(1,...st.held);
+ const tile=(lbl,val,sub="")=>`<div class="card"><div class="lbl">${lbl}</div><div class="big">${val}</div>${sub?`<div class="muted" style="font-size:14px">${sub}</div>`:""}</div>`;
+ const bars=(vals,max,fmt)=>`<div class="bars">${vals.map((v,i)=>`<div class="bar"><div class="bv" title="${fmt(v)}"><span style="height:${Math.round(v/max*100)}%"></span></div><div class="bl">${MONS[i].replace(".","")}</div><div class="bn">${v?fmt(v):""}</div></div>`).join("")}</div>`;
+ const B={durch:"Durchzahler",zehner:"Karten",einzeln:"Einzelstunden",ms:"Musikschule",frei:"Kostenlos"};
+ return`<div><button class="btn ghost" data-act="nav" data-view="more">${icon("left")} Mehr</button></div>
+ <header class="phead"><div><p class="eyebrow">Dein Wirtschaftsjahr auf einen Blick</p><h1>Jahresübersicht ${y}</h1></div>
+  <div class="weeknav"><button class="btn" data-act="statPrev" aria-label="Voriges Jahr">${icon("left")}</button><span class="title" style="min-width:70px">${y}</span><button class="btn" data-act="statNext" aria-label="Nächstes Jahr">${icon("right")}</button><button class="btn primary" data-act="statsPdf">${icon("save")} PDF</button></div></header>
+ ${topBanners()}
+ <div class="sum">${tile("Einnahmen",euro(st.total),"laut Bezahlt-Häkchen")}${tile("Gehaltene Stunden",st.H.length,`${Math.round(st.minutes/60)} Zeitstunden`)}${tile("Schüler mit Unterricht",st.students,st.groups?`davon ${st.groups} Zweiergruppe${st.groups>1?"n":""}`:"")}${tile("Neu / beendet",`${st.neu} / ${st.ende}`,"angefangen / archiviert")}</div>
+ ${block("Einnahmen pro Monat",`<div class="card pad">${bars(st.perMonth,maxI,v=>euro(v))}</div>`)}
+ ${block("Einnahmen nach Art",`<div class="card list paytable">${[["Durchzahler",st.inc.durch],["Zehner- und Fünferkarten",st.inc.karten],["Einzelstunden",st.inc.einzeln]].map(([k,a])=>`<div class="prow" style="grid-template-columns:1fr auto"><div>${k}</div><div style="font-weight:700;font-variant-numeric:tabular-nums">${euro(a.reduce((x,y)=>x+y,0))}</div></div>`).join("")}<div class="prow" style="grid-template-columns:1fr auto"><div><b>Gesamt</b></div><div style="font-weight:800;font-variant-numeric:tabular-nums">${euro(st.total)}</div></div></div>
+  <p class="muted" style="margin:0;font-size:14px">Gezählt wird, was du als bezahlt abgehakt hast. Karten zählen im Monat des Kaufs. Die Musikschule rechnet selbst ab und ist deshalb nicht enthalten.</p>`)}
+ ${block("Gehaltene Stunden pro Monat",`<div class="card pad">${bars(st.held,maxH,v=>String(v))}</div>`)}
+ ${block("Stunden im Detail",`<div class="card list paytable">${Object.entries(st.byBill).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="prow" style="grid-template-columns:1fr auto"><div>${B[k]||k}</div><div style="font-weight:700">${v}</div></div>`).join("")}
+  <div class="prow" style="grid-template-columns:1fr auto"><div>davon Nachholstunden</div><div style="font-weight:700">${st.nach}</div></div>
+  <div class="prow" style="grid-template-columns:1fr auto"><div>Abgesagt vom Schüler</div><div style="font-weight:700">${st.cancS}</div></div>
+  <div class="prow" style="grid-template-columns:1fr auto"><div>Abgesagt von dir</div><div style="font-weight:700">${st.cancI}</div></div></div>
+  <p class="muted" style="margin:0;font-size:14px">Es zählen nur Stunden, die du als gehalten oder abgesagt markiert hast.</p>`)}`;
+};
+function statsPdf(){withPdf(()=>{
+ const y=S.statYear,st=yearStats(y),pr=D.settings.profile||{};const P=pdfDoc();
+ P.kicker("Wirtschaftsjahr");P.title(`Jahresübersicht ${y}`,[pr.name,pr.contact].filter(Boolean).join("\n"));
+ P.h("Einnahmen");P.rows([["Durchzahler",euro(st.inc.durch.reduce((a,b)=>a+b,0))],["Zehner- und Fünferkarten",euro(st.inc.karten.reduce((a,b)=>a+b,0))],["Einzelstunden",euro(st.inc.einzeln.reduce((a,b)=>a+b,0))],["Gesamt",euro(st.total)]]);
+ P.h("Einnahmen pro Monat");P.rows(st.perMonth.map((v,i)=>[MON[i],euro(v)]));
+ P.h("Unterricht");P.rows([["Gehaltene Stunden",String(st.H.length)],["Unterrichtszeit",`${Math.round(st.minutes/60)} Stunden`],["Schüler mit Unterricht",String(st.students)],["Neue Schüler",String(st.neu)],["Beendet (archiviert)",String(st.ende)],["Abgesagt vom Schüler",String(st.cancS)],["Abgesagt von mir",String(st.cancI)],["Nachholstunden",String(st.nach)]]);
+ P.p("Einnahmen laut Bezahlt-Häkchen im Schülerbuch; Karten im Monat des Kaufs. Unterricht über die Musikschule ist nicht in den Einnahmen enthalten.");
+ P.footer(`Jahresübersicht ${y}`+(pr.name?" · "+pr.name:""));
+ sharePdf(P.doc,`Jahresuebersicht-${y}.pdf`);
+})}
+
 /* ================= Rendern ================= */
 const TABS=[["home","Heute","home"],["plan","Stundenplan","cal"],["students","Schüler","users"],["pay","Zahlungen","euro"],["ms","Musikschule","school"],["events","Konzerte","note"],["more","Mehr","sliders"]];
 let rq=false,pending=false;
@@ -813,13 +881,13 @@ function doRender(){
  if(ae&&$("#main").contains(ae)&&ae.matches("input,textarea,select")){pending=true;return}
  const sy=window.scrollY;
  $("#main").innerHTML=(VIEWS[S.view]||VIEWS.home)();
- const cur=S.view==="student"?"students":["settings","year","terms"].includes(S.view)?"more":S.view;
+ const cur=S.view==="student"?"students":["settings","year","terms","stats"].includes(S.view)?"more":S.view;
  $("#tabs").innerHTML=TABS.map(([v,l,i])=>`<button class="tab" data-act="nav" data-view="${v}" ${cur===v?'aria-current="page"':""}>${icon(i)}<span class="lbl">${l}</span></button>`).join("");
  if(S.keepScroll){window.scrollTo(0,sy);}
  S.keepScroll=true;
 }
 document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
-function go(view,arg){if(view==="terms"||view==="year")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;window.scrollTo(0,0);render()}
+function go(view,arg){if(view==="terms"||view==="year"||view==="stats")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;window.scrollTo(0,0);render()}
 
 /* ================= Toast ================= */
 let toastT;
@@ -858,7 +926,7 @@ function openStudentForm(id,preset){
   <div class="field"><label for="f_name"><span data-when="kind=einzel">Name</span><span data-when="kind=gruppe">Name der Gruppe (freiwillig)</span></label><input class="inp" id="f_name" name="name" value="${h(st.name)}" placeholder="Vor- und Nachname" autocomplete="off" autofocus><p class="hint" data-when="kind=gruppe">Leer lassen, dann heißt die Gruppe z. B. „Lea & Tim“.</p></div>
   <div class="field"><span class="lbl">Foto</span><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div id="phPrev">${avatar(st,"lg")}</div><button type="button" class="btn sm" data-sact="pickPhoto">${icon("plus")} ${st.photo?"Foto ändern":"Foto wählen"}</button><button type="button" class="btn sm ghost" data-sact="delPhoto" id="phDel" ${st.photo?"":"hidden"}>Foto entfernen</button><input type="file" id="f_photo" accept="image/*" hidden></div><p class="hint">Freiwillig. Bleibt nur auf diesem iPad.</p></div>
   <div class="field"><span class="lbl">Status</span>${seg("status",[["aktiv","Aktiv"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiviert"]],st.status)}</div>
-  <div class="two" data-when="status=pausiert"><div class="field"><label for="f_pu">Pausiert bis (freiwillig)</label><input class="inp" id="f_pu" type="date" name="pauseUntil" value="${h(st.pauseUntil||"")}"></div><div class="field"><label for="f_pn">Grund (freiwillig)</label><input class="inp" id="f_pn" name="pauseNote" value="${h(st.pauseNote||"")}" placeholder="z. B. Auslandssemester" autocomplete="off"></div></div>
+  <div class="two" data-when="status=pausiert"><div class="field"><label for="f_pf">Pausiert seit</label><input class="inp" id="f_pf" type="date" name="pauseFrom" value="${h(st.pauseFrom||todayStr())}"></div><div class="field"><label for="f_pu">Pausiert bis (freiwillig)</label><input class="inp" id="f_pu" type="date" name="pauseUntil" value="${h(st.pauseUntil||"")}"></div><div class="field"><label for="f_pn">Grund (freiwillig)</label><input class="inp" id="f_pn" name="pauseNote" value="${h(st.pauseNote||"")}" placeholder="z. B. Auslandssemester" autocomplete="off"></div></div>
   <p class="hint info" data-when="status=pausiert">Pausierte Schüler stehen nicht im Stundenplan und nicht bei den Zahlungen. Fester Termin und Unterrichtstagebuch bleiben erhalten.</p>
   <div class="two" data-when="status=warteliste"><div class="field"><label for="f_ws">Wartet seit</label><input class="inp" id="f_ws" type="date" name="waitSince" value="${h(st.waitSince||"")}"></div><div class="field"><label for="f_ww">Wunschzeiten</label><input class="inp" id="f_ww" name="waitWish" value="${h(st.waitWish||"")}" placeholder="z. B. Di/Do nachmittags"></div></div>
   <div class="field"><span class="lbl">Abrechnung</span>${seg("billing",[["durch","Durchzahler"],["zehner","Karte"],["einzeln","Einzelstunde"],["ms","Musikschule"],["frei","Kostenlos"]],st.billing)}</div>
@@ -893,7 +961,7 @@ function openStudentForm(id,preset){
    if(!v.name.trim()){$(v.kind==="gruppe"?"#f_m1":"#f_name",p).focus();toast(v.kind==="gruppe"?"Bitte die Namen der beiden Teilnehmer eintragen.":"Bitte einen Namen eintragen.");return}
    st.kind=v.kind||"einzel";st.members=mem;
    const old=D.students[st.id];
-   st.name=v.name.trim();st.status=v.status;st.billing=v.billing;st.dur=v.billing==="zehner"?45:+v.dur;st.price=v.billing==="durch"?num(v.price):v.billing==="einzeln"?num(v.lprice):null;st.start=v.start||null;st.notes=v.notes.trim();st.waitSince=v.waitSince||null;st.waitWish=v.waitWish.trim();if(v.status==="pausiert"){st.pauseUntil=v.pauseUntil||null;st.pauseNote=(v.pauseNote||"").trim()}else{delete st.pauseUntil;delete st.pauseNote}
+   st.name=v.name.trim();st.status=v.status;st.billing=v.billing;st.dur=v.billing==="zehner"?45:+v.dur;st.price=v.billing==="durch"?num(v.price):v.billing==="einzeln"?num(v.lprice):null;st.start=v.start||null;st.notes=v.notes.trim();st.waitSince=v.waitSince||null;st.waitWish=v.waitWish.trim();if(v.status==="pausiert"){st.pauseFrom=v.pauseFrom||todayStr();st.pauseUntil=v.pauseUntil||null;st.pauseNote=(v.pauseNote||"").trim()}else{if(old&&old.status==="pausiert"&&old.pauseFrom){st.pauses=(st.pauses||[]).concat([{from:old.pauseFrom,to:todayStr()}])}delete st.pauseFrom;delete st.pauseUntil;delete st.pauseNote}
    st.slots=$$(".slotrow",f).map(r=>({id:r.dataset.slot,wd:+$('[data-k="wd"]',r).value,time:$('[data-k="time"]',r).value,rh:$('[data-k="rh"]',r).value,from:$('[data-k="from"]',r).value||st.start||todayStr()})).filter(s=>s.time);
    if(st.status==="archiviert"&&(!old||old.status!=="archiviert"))st.archivedAt=todayStr();
    if(st.status!=="archiviert")delete st.archivedAt;
@@ -911,9 +979,9 @@ function deleteStudent(id){delete D.students[id];for(const [k,l] of Object.entri
 /* ----- Stunden-Dialog ----- */
 function cleanLesson(l){return{id:l.id,sid:l.sid,date:l.date,time:l.time||"",dur:+l.dur||null,kind:l.kind||"einzel",status:l.status||"offen",by:l.status==="abgesagt"?(l.by||null):null,nachholen:l.status==="abgesagt"?!!l.nachholen:false,nachholId:l.nachholId||null,nachholFor:l.nachholFor||null,note:l.note||"",paid:!!l.paid,sick:l.status==="abgesagt"&&l.by==="ich"&&!!l.sick,example:l.example||undefined}}
 function saveLesson(l){D.lessons[l.id]=cleanLesson(l);changed()}
-function markHeld(id){const l=lessonById(id);if(!l)return;l.status="gehalten";saveLesson(l);const st=D.students[l.sid];
+function markHeld(id){const l=lessonById(id);if(!l)return;const prev=D.lessons[id]?JSON.parse(JSON.stringify(D.lessons[id])):null;l.status="gehalten";saveLesson(l);const st=D.students[l.sid];
  let msg=`${st?st.name:"Stunde"}: gehalten`;if(st&&st.billing==="zehner"){const c=cardStats(st);msg+=c.none?" · keine Karte!":` · noch ${Math.max(c.remaining,0)} auf der Karte`}
- toast(msg,"Notiz schreiben",()=>openLesson(id))}
+ toast(msg,"Rückgängig",()=>{if(prev)D.lessons[id]=prev;else delete D.lessons[id];changed();toast("Rückgängig gemacht.")})}
 function openLesson(id,preset){
  const l=lessonById(id);if(!l)return;Object.assign(l,preset||{});const st=D.students[l.sid];if(!st)return;
  if(preset&&preset.status==="abgesagt"&&!l.by){l.by="schueler"}
@@ -1130,9 +1198,11 @@ const ACT={
  autoPlan:()=>autoPlan(),
  resetYear:()=>confirmSheet(`Streichungen ${S.planYear} zurücksetzen?`,"Alle gestrichenen Tage dieses Jahres werden wieder zu Unterrichtstagen.","Zurücksetzen",()=>{for(const d of Object.keys(D.settings.struck))if(d.startsWith(String(S.planYear)))delete D.settings.struck[d];changed()}),
  termsPdf:()=>termsPdf(),freeDaysPdf:()=>freeDaysPdf(),
- reactivate:d=>{const s=D.students[d.id];if(!s)return;s.status="aktiv";delete s.pauseUntil;delete s.pauseNote;changed();toast(`${s.name} ist wieder aktiv.`)},
+ reactivate:d=>{const s=D.students[d.id];if(!s)return;if(s.pauseFrom)s.pauses=(s.pauses||[]).concat([{from:s.pauseFrom,to:todayStr()}]);delete s.pauseFrom;s.status="aktiv";delete s.pauseUntil;delete s.pauseNote;changed();toast(`${s.name} ist wieder aktiv.`)},
+ statPrev:()=>{S.statYear--;render()},statNext:()=>{S.statYear++;render()},statsPdf:()=>statsPdf(),
  lessonPaid:d=>{const l=D.lessons[d.id];if(l){l.paid=!l.paid;changed()}},
- monthPaid:d=>{const st=D.students[d.sid];if(!st)return;st.paid=st.paid||{};if(st.paid[d.m])delete st.paid[d.m];else st.paid[d.m]=true;changed()},
+ monthCycle:d=>{const st=D.students[d.sid];if(!st)return;st.paid=st.paid||{};const v=st.paid[d.m];if(v==="x")delete st.paid[d.m];else if(v)st.paid[d.m]="x";else st.paid[d.m]=st.price!=null?+st.price:true;changed()},
+ monthPaid:d=>{const st=D.students[d.sid];if(!st)return;st.paid=st.paid||{};if(st.paid[d.m])delete st.paid[d.m];else st.paid[d.m]=st.price!=null?+st.price:true;changed()},
  remToggle:d=>{const r=D.reminders[d.id];if(r){r.done=!r.done;r.doneAt=r.done?todayStr():null;changed();if(r.done)toast("Erledigt.","Rückgängig",()=>{r.done=false;r.doneAt=null;changed()})}},
  remDel:d=>{const r=D.reminders[d.id];if(!r)return;delete D.reminders[d.id];changed();toast("Erinnerung gelöscht.","Rückgängig",()=>{D.reminders[r.id]=r;changed()})},
  addRem:d=>openReminder(d.sid||null),
