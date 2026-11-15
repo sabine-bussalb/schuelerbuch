@@ -98,7 +98,8 @@ section.block{display:flex;flex-direction:column;gap:10px}
 .st-abgesagt{background:linear-gradient(90deg,var(--bad-soft) 0 4px,transparent 4px)}
 /* Avatar */
 .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;background:hsl(var(--h) var(--avs) var(--avl));color:hsl(var(--h) 50% var(--avd));flex:none;letter-spacing:.02em}
-.av.lg{width:64px;height:64px;font-size:22px}
+.av.lg{width:72px;height:72px;font-size:24px}
+img.av{object-fit:cover;display:block;background:var(--line)}
 /* Wochenplan */
 .weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .weeknav .title{font-weight:700;min-width:190px;text-align:center;font-variant-numeric:tabular-nums}
@@ -410,20 +411,23 @@ function nextLessons(sid,n=3){const out=[];const t=todayStr();for(let i=0;i<70&&
 function pastOpen(){return cached("pastOpen",()=>{const t=todayStr(),out=[];for(let i=1;i<=42;i++){const d=addDays(t,-i);for(const l of lessonsOn(d))if(l.status==="offen")out.push(l)}return out})}
 function backupDue(){const lb=D.meta.lastBackup;if(!students().length)return false;if(!lb)return true;return daysBetween(lb,todayStr())>=7}
 const slotText=st=>(st.slots||[]).filter(s=>s.time).map(s=>`${WDS[s.wd]} ${s.time}${s.rh==="2"?" (14-tägig)":""}`).join(", ");
-const BILL={durch:"Durchzahler",zehner:"Zehnerkarte",einzeln:"Einzelstunden",ms:"Musikschule"};
-const STAT={aktiv:"Aktiv",warteliste:"Warteliste",archiviert:"Archiviert"};
+const BILL={durch:"Durchzahler",zehner:"Zehnerkarte",einzeln:"Einzelstunden",ms:"Musikschule",frei:"Kostenlos"};
+const STAT={aktiv:"Aktiv",pausiert:"Pausiert",warteliste:"Warteliste",archiviert:"Archiviert"};
 
 /* ================= Bausteine ================= */
-const avatar=(st,c="")=>`<div class="av ${c}" style="--h:${hueOf(st.name)}" aria-hidden="true">${h(initials(st.name))}</div>`;
+const okPhoto=p=>typeof p==="string"&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p);
+const avatar=(st,c="")=>okPhoto(st.photo)?`<img class="av ${c}" src="${st.photo}" alt="" aria-hidden="true">`:`<div class="av ${c}" style="--h:${hueOf(st.name)}" aria-hidden="true">${h(initials(st.name))}</div>`;
 function billChip(st){
  if(st.billing==="ms")return`<span class="chip acc">Musikschule</span>`;
  if(st.billing==="einzeln")return`<span class="chip">Einzelstunde</span>`;
+ if(st.billing==="frei")return`<span class="chip">kostenlos</span>`;
  if(st.billing==="zehner"){const cs=cardStats(st);if(cs.none)return`<span class="chip bad">keine Karte</span>`;const r=cs.remaining;const cls=r<=0?"bad":r<=D.settings.warn?"warn":"";const sz=+((cs.current||cs.last).size)||10;return`<span class="chip ${cls}">${sz}er · ${r<=0?(r===0?"aufgebraucht":`${-r} offen`):`noch ${r}`}</span>`}
  return`<span class="chip">Durchzahler</span>`;
 }
 function lessonRow(l,showDate){
  const st=D.students[l.sid];if(!st)return"";if(l.virtual)VM[l.id]=l;
  const chips=[`<span class="chip">${h(l.dur||st.dur||"")}′</span>`,billChip(st)];
+ if(st.kind==="gruppe")chips.push(`<span class="chip acc">2er-Gruppe</span>`);
  if(l.kind==="nachhol")chips.push(`<span class="chip acc">Nachholstunde</span>`);
  if(l.kind==="einzel")chips.push(`<span class="chip">Einzeltermin</span>`);
  const rc=openRem(st.id).length;if(rc)chips.push(`<span class="chip warn">${icon("bell")} ${rc}</span>`);
@@ -470,6 +474,8 @@ VIEWS.home=()=>{
  if(low.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Zehnerkarten</b> – bald neue Karte nötig</p>${low.map(([s,c])=>`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${c.none?"Noch keine Karte angelegt":c.remaining<=0?(c.remaining===0?"Karte aufgebraucht":`${-c.remaining} Stunde(n) ohne Karte`):`Noch ${c.remaining} Stunde${c.remaining===1?"":"n"} auf der Karte`}</div></div>${icon("right")}</div>`).join("")}</div>`);
  const exp=activeStudents().filter(s=>s.billing==="zehner").map(s=>[s,cardStats(s)]).filter(([s,c])=>!c.none&&c.remaining>0&&c.expires&&daysBetween(t,c.expires)<=30);
  if(exp.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Karten laufen ab</b> – gültig ein Jahr ab Kaufdatum</p>${exp.map(([s,c])=>`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${c.expires<t?"Abgelaufen am":"Gültig bis"} ${fmtD(c.expires)} · noch ${c.remaining} Stunde${c.remaining===1?"":"n"}</div></div>${icon("right")}</div>`).join("")}</div>`);
+ const pe=students().filter(s=>s.status==="pausiert"&&s.pauseUntil&&s.pauseUntil<=addDays(t,7));
+ if(pe.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Pause endet</b> – wieder in den Stundenplan aufnehmen?</p>${pe.map(s=>`<div class="srow">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">Pausiert bis ${fmtD(s.pauseUntil)}</div></div><button class="btn sm" data-act="reactivate" data-id="${h(s.id)}">${icon("check")} Wieder aktiv</button></div>`).join("")}</div>`);
  const nh=Object.values(D.lessons).filter(l=>l.status==="abgesagt"&&l.nachholen&&!l.nachholId&&D.students[l.sid]).sort((a,b)=>a.date.localeCompare(b.date));
  if(nh.length)todo.push(`<div class="card list"><p class="none" style="padding-bottom:6px"><b>Nachholen</b> – Termin fehlt noch</p>${nh.map(l=>lessonRow(l,true)).join("")}</div>`);
  const m=ym(t);const unpaid=activeStudents().filter(s=>s.billing==="durch"&&!(s.paid||{})[m]);
@@ -521,7 +527,7 @@ VIEWS.plan=()=>{
 };
 VIEWS.students=()=>{
  const all=students();const cnt=f=>f==="alle"?all.length:f==="ms"?all.filter(s=>s.billing==="ms"&&s.status==="aktiv").length:all.filter(s=>s.status===f).length;
- const F=[["aktiv","Aktiv"],["warteliste","Warteliste"],["archiviert","Archiv"],["ms","Musikschule"],["alle","Alle"]];
+ const F=[["aktiv","Aktiv"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiv"],["ms","Musikschule"],["alle","Alle"]];
  return`<header class="phead"><div><p class="eyebrow">${cnt("aktiv")} aktive Schüler</p><h1>Schüler</h1></div><button class="btn primary" data-act="newStudent">${icon("plus")} Neuer Schüler</button></header>
  ${topBanners()}
  <div class="filters" role="group" aria-label="Filter">${F.map(([k,l])=>`<button class="fchip" data-act="filter" data-f="${k}" aria-pressed="${S.filter===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("")}</div>
@@ -531,14 +537,20 @@ VIEWS.students=()=>{
 function studentList(){
  const q=S.search.trim().toLowerCase();
  let L=students().filter(s=>S.filter==="alle"?true:S.filter==="ms"?(s.billing==="ms"&&s.status==="aktiv"):s.status===S.filter);
- if(q)L=students().filter(s=>s.name.toLowerCase().includes(q));
+ if(q){const hit=s=>(s.name+" "+(s.members||[]).join(" ")).toLowerCase().includes(q);const act=L.filter(hit);const rest=students().filter(s=>hit(s)&&!act.includes(s));
+  if(!act.length&&!rest.length)return`<div class="card"><p class="none">Niemand gefunden.</p></div>`;
+  return (act.length?studentRows(act):"")+(rest.length?`<h2 style="margin:14px 0 8px">In anderen Listen gefunden</h2>${studentRows(rest)}`:"")}
  if(S.filter==="warteliste"&&!q)L.sort((a,b)=>(a.waitSince||"").localeCompare(b.waitSince||""));
- if(!L.length)return`<div class="card"><p class="none">${q?"Niemand gefunden.":S.filter==="warteliste"?"Die Warteliste ist leer.":S.filter==="archiviert"?"Im Archiv ist noch niemand.":"Noch keine Schüler in dieser Liste."}</p></div>`;
+ if(!L.length)return`<div class="card"><p class="none">${q?"Niemand gefunden.":S.filter==="warteliste"?"Die Warteliste ist leer.":S.filter==="pausiert"?"Gerade pausiert niemand.":S.filter==="archiviert"?"Im Archiv ist noch niemand.":"Noch keine Schüler in dieser Liste."}</p></div>`;
+ return studentRows(L);
+}
+function studentRows(L){
  return`<div class="card list">${L.map(s=>{
   let sub;
   if(s.status==="warteliste")sub=`Wartet seit ${s.waitSince?fmtD(s.waitSince):"–"}${s.waitWish?` · ${h(s.waitWish)}`:""}`;
   else if(s.status==="archiviert")sub=`Archiviert${s.archivedAt?` seit ${fmtD(s.archivedAt)}`:""}`;
-  else sub=[slotText(s)||"kein fester Termin",`${s.dur}′`,s.billing==="durch"&&s.price!=null?`${euro(s.price)}/Monat`:s.billing==="einzeln"&&s.price!=null?`${euro(s.price)}/Stunde`:""].filter(Boolean).join(" · ");
+  else if(s.status==="pausiert")sub=`Pausiert${s.pauseUntil?` bis ${fmtD(s.pauseUntil)}`:""}${s.pauseNote?` · ${h(s.pauseNote)}`:""}`;
+  else sub=[s.kind==="gruppe"?"2er-Gruppe":"",slotText(s)||"kein fester Termin",`${s.dur}′`,s.billing==="durch"&&s.price!=null?`${euro(s.price)}/Monat`:s.billing==="einzeln"&&s.price!=null?`${euro(s.price)}/Stunde`:""].filter(Boolean).join(" · ");
   return`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${sub}</div></div><div class="end">${s.status==="aktiv"?billChip(s):`<span class="chip">${STAT[s.status]}</span>`}${icon("right")}</div></div>`;
  }).join("")}</div>`;
 }
@@ -546,9 +558,9 @@ VIEWS.student=()=>{
  const st=D.students[S.arg];if(!st){S.view="students";return VIEWS.students()}
  const t=todayStr();const nx=nextLessons(st.id,3);
  let out=`<div><button class="btn ghost" data-act="back">${icon("left")} Zurück</button></div>
- <div class="dtop">${avatar(st,"lg")}<div class="grow"><h1>${h(st.name)}</h1><div class="chips" style="margin-top:6px"><span class="chip ${st.status==="aktiv"?"good":st.status==="warteliste"?"warn":""}">${STAT[st.status]}</span>${st.status==="aktiv"?billChip(st):""}<span class="chip">${st.dur}′</span></div></div>
- <div class="row-btns">${st.status==="warteliste"?`<button class="btn primary" data-act="takeIn" data-id="${h(st.id)}">${icon("check")} Aufnehmen</button>`:""}<button class="btn" data-act="editStudent" data-id="${h(st.id)}">${icon("pen")} Bearbeiten</button></div></div>`;
- const facts=[["Abrechnung",BILL[st.billing]],["Stundenlänge",`${st.dur} Minuten`]];
+ <div class="dtop">${avatar(st,"lg")}<div class="grow"><h1>${h(st.name)}</h1><div class="chips" style="margin-top:6px"><span class="chip ${st.status==="aktiv"?"good":st.status==="warteliste"||st.status==="pausiert"?"warn":""}">${STAT[st.status]}</span>${st.status==="aktiv"?billChip(st):""}<span class="chip">${st.dur}′</span></div></div>
+ <div class="row-btns">${st.status==="pausiert"?`<button class="btn primary" data-act="reactivate" data-id="${h(st.id)}">${icon("check")} Wieder aktiv</button>`:""}${st.status==="warteliste"?`<button class="btn primary" data-act="takeIn" data-id="${h(st.id)}">${icon("check")} Aufnehmen</button>`:""}<button class="btn" data-act="editStudent" data-id="${h(st.id)}">${icon("pen")} Bearbeiten</button></div></div>`;
+ const facts=[];if(st.kind==="gruppe")facts.push(["Zweiergruppe",(st.members||[]).join(" & ")||"–"]);facts.push(["Abrechnung",BILL[st.billing]],["Stundenlänge",`${st.dur} Minuten`]);
  if(st.billing==="durch")facts.push(["Monatsbetrag",st.price!=null?euro(st.price):"noch nicht eingetragen"]);
  if(st.billing==="einzeln")facts.push(["Preis pro Stunde",st.price!=null?euro(st.price):"noch nicht eingetragen"]);
  facts.push(["Fester Termin",slotText(st)||"keiner"]);
@@ -556,6 +568,7 @@ VIEWS.student=()=>{
  if(st.start)facts.push(["Unterricht seit",fmtD(st.start)]);
  if(st.status==="warteliste")facts.push(["Wartet seit",st.waitSince?fmtD(st.waitSince):"–"],["Wunsch",st.waitWish||"–"]);
  if(st.status==="archiviert"&&st.archivedAt)facts.push(["Archiviert seit",fmtD(st.archivedAt)]);
+ if(st.status==="pausiert")facts.push(["Pausiert bis",st.pauseUntil?fmtD(st.pauseUntil):"offen"]),st.pauseNote&&facts.push(["Grund",st.pauseNote]);
  out+=`<div class="card"><dl class="facts" style="margin:0">${facts.map(([k,v])=>`<div><dt>${k}</dt><dd>${h(v)}</dd></div>`).join("")}</dl></div>`;
  if(st.notes)out+=block("Notizen",`<div class="card pad" style="white-space:pre-wrap">${h(st.notes)}</div>`);
  // Zehnerkarte
@@ -717,7 +730,7 @@ function termsModel(y,st){
  sec.push({h:"Bankverbindung",p:bank.length?[]:["(Bitte in den Einstellungen eintragen.)"],rows:bank,p2:[]});
  sec.push({h:"Anhang: Bestehende Preise für Schüler vor 2024",p:["Schüler, die vor dem Jahr 2024 bereits Unterricht in Anspruch genommen haben, behalten ihre bisherigen Preise bei. Dies betrifft die monatlichen Gebühren sowie die Kosten für Zehnerkarten. Ab dem Zeitpunkt der Geschäftsvereinbarung gelten für diese Schüler weiterhin die vor 2024 vereinbarten Preise, sofern keine neuen Vereinbarungen getroffen werden."],rows:[],p2:[]});
  let personal=null;
- if(st){const parts=[];if(st.billing==="durch")parts.push(`${st.dur} Minuten pro Woche, ${st.price!=null?euro(st.price)+" monatlich":"Monatsbetrag nach Vereinbarung"}`);else if(st.billing==="zehner")parts.push("Zehner- oder Fünferkarte, 45 Minuten");else if(st.billing==="einzeln")parts.push(`Einzelstunden, ${st.dur} Minuten${st.price!=null?", "+euro(st.price)+" pro Stunde":""}`);else if(st.billing==="ms")parts.push("Unterricht über die Musikschule");personal={name:st.name.replace(/^Beispiel:\s*/,""),line:parts.join("")}}
+ if(st){const parts=[];if(st.billing==="durch")parts.push(`${st.dur} Minuten pro Woche, ${st.price!=null?euro(st.price)+" monatlich":"Monatsbetrag nach Vereinbarung"}`);else if(st.billing==="zehner")parts.push("Zehner- oder Fünferkarte, 45 Minuten");else if(st.billing==="einzeln")parts.push(`Einzelstunden, ${st.dur} Minuten${st.price!=null?", "+euro(st.price)+" pro Stunde":""}`);else if(st.billing==="ms")parts.push("Unterricht über die Musikschule");else if(st.billing==="frei")parts.push(`${st.dur} Minuten, ohne Kosten`);personal={name:st.name.replace(/^Beispiel:\s*/,""),line:parts.join("")}}
  return{title:`Unterrichtsbedingungen ${y}`,sub:"Vereinbarung für Gesangsunterricht",sender:pr.name||"",contact:pr.contact||"",sec,personal};
 }
 VIEWS.terms=()=>{
@@ -826,7 +839,7 @@ function applyWhen(root){const v=formVals(root);$$("[data-when]",root).forEach(e
 function confirmSheet(title,text,okLabel,fn,danger=true){openSheet(`${sheetHead(title)}<p style="margin:0">${text}</p><div class="foot"><div class="r"><button class="btn" data-sact="close">Abbrechen</button><button class="btn ${danger?"danger":"primary"}" data-sact="ok">${okLabel}</button></div></div>`,p=>{p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="ok"){closeSheet();fn()}}})}
 
 /* ----- Schüler-Formular ----- */
-function blankStudent(){return{id:newId(),name:"",status:"aktiv",billing:"durch",dur:45,price:null,slots:[],start:todayStr(),notes:"",cards:[],paid:{},waitSince:todayStr(),waitWish:"",created:todayStr()}}
+function blankStudent(){return{id:newId(),name:"",kind:"einzel",members:[],status:"aktiv",billing:"durch",dur:45,price:null,slots:[],start:todayStr(),notes:"",cards:[],paid:{},waitSince:todayStr(),waitWish:"",created:todayStr()}}
 function openStudentForm(id,preset){
  const isNew=!id||!D.students[id];
  const st=Object.assign(JSON.parse(JSON.stringify(isNew?blankStudent():D.students[id])),preset||{});
@@ -840,14 +853,20 @@ function openStudentForm(id,preset){
  const presets=d=>(D.settings.prices[d]||[]).map(p=>`<button type="button" class="cbtn ${+st.price===+p?"on":""}" data-sact="fill" data-v="${p}">${euro(p)}</button>`).join("");
  openSheet(`${sheetHead(isNew?"Neuer Schüler":"Schüler bearbeiten")}
   <form id="sf" novalidate style="display:flex;flex-direction:column;gap:16px">
-  <div class="field"><label for="f_name">Name</label><input class="inp" id="f_name" name="name" value="${h(st.name)}" placeholder="Vor- und Nachname" autocomplete="off" autofocus></div>
-  <div class="field"><span class="lbl">Status</span>${seg("status",[["aktiv","Aktiv"],["warteliste","Warteliste"],["archiviert","Archiviert"]],st.status)}</div>
+  <div class="field"><span class="lbl">Art</span>${seg("kind",[["einzel","Einzelunterricht"],["gruppe","Zweiergruppe"]],st.kind||"einzel")}</div>
+  <div class="two" data-when="kind=gruppe"><div class="field"><label for="f_m1">Teilnehmer 1</label><input class="inp" id="f_m1" name="m1" value="${h((st.members||[])[0]||"")}" autocomplete="off"></div><div class="field"><label for="f_m2">Teilnehmer 2</label><input class="inp" id="f_m2" name="m2" value="${h((st.members||[])[1]||"")}" autocomplete="off"></div></div>
+  <div class="field"><label for="f_name"><span data-when="kind=einzel">Name</span><span data-when="kind=gruppe">Name der Gruppe (freiwillig)</span></label><input class="inp" id="f_name" name="name" value="${h(st.name)}" placeholder="Vor- und Nachname" autocomplete="off" autofocus><p class="hint" data-when="kind=gruppe">Leer lassen, dann heißt die Gruppe z. B. „Lea & Tim“.</p></div>
+  <div class="field"><span class="lbl">Foto</span><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div id="phPrev">${avatar(st,"lg")}</div><button type="button" class="btn sm" data-sact="pickPhoto">${icon("plus")} ${st.photo?"Foto ändern":"Foto wählen"}</button><button type="button" class="btn sm ghost" data-sact="delPhoto" id="phDel" ${st.photo?"":"hidden"}>Foto entfernen</button><input type="file" id="f_photo" accept="image/*" hidden></div><p class="hint">Freiwillig. Bleibt nur auf diesem iPad.</p></div>
+  <div class="field"><span class="lbl">Status</span>${seg("status",[["aktiv","Aktiv"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiviert"]],st.status)}</div>
+  <div class="two" data-when="status=pausiert"><div class="field"><label for="f_pu">Pausiert bis (freiwillig)</label><input class="inp" id="f_pu" type="date" name="pauseUntil" value="${h(st.pauseUntil||"")}"></div><div class="field"><label for="f_pn">Grund (freiwillig)</label><input class="inp" id="f_pn" name="pauseNote" value="${h(st.pauseNote||"")}" placeholder="z. B. Auslandssemester" autocomplete="off"></div></div>
+  <p class="hint info" data-when="status=pausiert">Pausierte Schüler stehen nicht im Stundenplan und nicht bei den Zahlungen. Fester Termin und Unterrichtstagebuch bleiben erhalten.</p>
   <div class="two" data-when="status=warteliste"><div class="field"><label for="f_ws">Wartet seit</label><input class="inp" id="f_ws" type="date" name="waitSince" value="${h(st.waitSince||"")}"></div><div class="field"><label for="f_ww">Wunschzeiten</label><input class="inp" id="f_ww" name="waitWish" value="${h(st.waitWish||"")}" placeholder="z. B. Di/Do nachmittags"></div></div>
-  <div class="field"><span class="lbl">Abrechnung</span>${seg("billing",[["durch","Durchzahler"],["zehner","Karte"],["einzeln","Einzelstunde"],["ms","Musikschule"]],st.billing)}</div>
-  <div class="field" data-when="billing=durch|billing=ms|billing=einzeln"><span class="lbl">Stundenlänge</span>${seg("dur",[[30,"30 Min."],[45,"45 Min."],[60,"60 Min."]],st.dur)}</div>
+  <div class="field"><span class="lbl">Abrechnung</span>${seg("billing",[["durch","Durchzahler"],["zehner","Karte"],["einzeln","Einzelstunde"],["ms","Musikschule"],["frei","Kostenlos"]],st.billing)}</div>
+  <div class="field" data-when="billing=durch|billing=ms|billing=einzeln|billing=frei"><span class="lbl">Stundenlänge</span>${seg("dur",[[30,"30 Min."],[45,"45 Min."],[60,"60 Min."]],st.dur)}</div>
   <div class="field" data-when="billing=durch"><label for="f_price">Monatsbetrag (12 × im Jahr)</label><div class="presets" id="presets">${presets(st.dur)}</div><input class="inp" id="f_price" name="price" inputmode="decimal" value="${h(st.price==null?"":st.price)}" placeholder="Betrag in €" style="max-width:200px"></div>
   <div class="field" data-when="billing=einzeln"><label for="f_lp">Preis pro Stunde</label><input class="inp" id="f_lp" name="lprice" inputmode="decimal" value="${h(st.billing==="einzeln"&&st.price!=null?st.price:(D.settings.singlePrice??""))}" placeholder="€" style="max-width:200px"><p class="hint">Jede gehaltene Stunde kannst du unter „Zahlungen“ als bezahlt abhaken.</p></div>
   <p class="hint info" data-when="billing=zehner">Zehner- und Fünferkarten gibt es nur für 45 Minuten. Die Karten legst du nach dem Speichern beim Schüler an. Gezählt werden nur gehaltene Stunden.</p>
+  <p class="hint info" data-when="billing=frei">Unterricht ohne Bezahlung. Dieser Schüler erscheint deshalb nicht unter „Zahlungen“.</p>
   <p class="hint info" data-when="billing=ms">Die Musikschule rechnet ab. Deshalb gibt es bei diesem Schüler keinen Preis und kein Bezahlt-Häkchen.</p>
   <div class="field"><span class="lbl">Fester Termin</span><p class="hint">Nur ausfüllen, wenn der Schüler immer zur gleichen Zeit kommt. Die Stunde steht dann automatisch im Stundenplan, außer in den Ferien und an Feiertagen. Ohne festen Termin trägst du Stunden einzeln über „+ Termin“ ein.</p><div id="slots" style="display:flex;flex-direction:column;gap:10px">${st.slots.map(slotRow).join("")}</div><div><button type="button" class="btn sm" data-sact="addSlot">${icon("plus")} Festen Termin hinzufügen</button></div></div>
   <div class="field"><label for="f_start">Unterricht seit</label><input class="inp" id="f_start" type="date" name="start" value="${h(st.start||"")}" style="max-width:220px"></div>
@@ -856,18 +875,25 @@ function openStudentForm(id,preset){
   </form>`,p=>{
   const f=$("#sf",p);applyWhen(f);
   f.addEventListener("change",e=>{applyWhen(f);if(e.target.name==="dur"){st.price=num($("#f_price",p).value);$("#presets",p).innerHTML=presets(+e.target.value)}});
+  $("#f_photo",p).addEventListener("change",async e=>{const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
+   try{st.photo=await resizePhoto(file);$("#phPrev",p).innerHTML=avatar(st,"lg");$("#phDel",p).hidden=false}catch(err){toast("Dieses Foto konnte nicht gelesen werden.")}});
   f.addEventListener("input",e=>{if(e.target.name==="price"){$$(".cbtn",p).forEach(b=>b.classList.toggle("on",+b.dataset.v===num(e.target.value)))}});
   p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;const a=b.dataset.sact;
    if(a==="close")closeSheet();
    else if(a==="fill"){$("#f_price",p).value=b.dataset.v;$$(".cbtn",p).forEach(x=>x.classList.toggle("on",x===b))}
+   else if(a==="pickPhoto")$("#f_photo",p).click();
+   else if(a==="delPhoto"){st.photo=null;$("#phPrev",p).innerHTML=avatar({name:$("#f_name",p).value||st.name},"lg");$("#phDel",p).hidden=true}
    else if(a==="addSlot"){const s={id:newId(),wd:2,time:"",rh:"1",from:$("#f_start",p).value||todayStr()};$("#slots",p).insertAdjacentHTML("beforeend",slotRow(s))}
    else if(a==="delSlot")b.closest(".slotrow").remove();
    else if(a==="del")confirmSheet("Schüler löschen?",`<b>${h(st.name)}</b> wird mit allen Stunden, Notizen und Erinnerungen endgültig gelöscht. Wenn jemand nur nicht mehr kommt, ist <b>Archivieren</b> besser – dann bleibt der Verlauf erhalten.`,"Endgültig löschen",()=>{deleteStudent(st.id);go("students")});
   };
   f.onsubmit=e=>{e.preventDefault();const v=formVals(f);
-   if(!v.name.trim()){$("#f_name",p).focus();toast("Bitte einen Namen eintragen.");return}
+   const mem=v.kind==="gruppe"?[v.m1,v.m2].map(x=>(x||"").trim()).filter(Boolean):[];
+   if(v.kind==="gruppe"&&!v.name.trim())v.name=mem.join(" & ");
+   if(!v.name.trim()){$(v.kind==="gruppe"?"#f_m1":"#f_name",p).focus();toast(v.kind==="gruppe"?"Bitte die Namen der beiden Teilnehmer eintragen.":"Bitte einen Namen eintragen.");return}
+   st.kind=v.kind||"einzel";st.members=mem;
    const old=D.students[st.id];
-   st.name=v.name.trim();st.status=v.status;st.billing=v.billing;st.dur=v.billing==="zehner"?45:+v.dur;st.price=v.billing==="durch"?num(v.price):v.billing==="einzeln"?num(v.lprice):null;st.start=v.start||null;st.notes=v.notes.trim();st.waitSince=v.waitSince||null;st.waitWish=v.waitWish.trim();
+   st.name=v.name.trim();st.status=v.status;st.billing=v.billing;st.dur=v.billing==="zehner"?45:+v.dur;st.price=v.billing==="durch"?num(v.price):v.billing==="einzeln"?num(v.lprice):null;st.start=v.start||null;st.notes=v.notes.trim();st.waitSince=v.waitSince||null;st.waitWish=v.waitWish.trim();if(v.status==="pausiert"){st.pauseUntil=v.pauseUntil||null;st.pauseNote=(v.pauseNote||"").trim()}else{delete st.pauseUntil;delete st.pauseNote}
    st.slots=$$(".slotrow",f).map(r=>({id:r.dataset.slot,wd:+$('[data-k="wd"]',r).value,time:$('[data-k="time"]',r).value,rh:$('[data-k="rh"]',r).value,from:$('[data-k="from"]',r).value||st.start||todayStr()})).filter(s=>s.time);
    if(st.status==="archiviert"&&(!old||old.status!=="archiviert"))st.archivedAt=todayStr();
    if(st.status!=="archiviert")delete st.archivedAt;
@@ -877,6 +903,9 @@ function openStudentForm(id,preset){
   };
  });
 }
+function resizePhoto(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();
+ img.onload=()=>{try{const S2=320,c=document.createElement("canvas");c.width=S2;c.height=S2;const k=Math.min(img.naturalWidth,img.naturalHeight);const sx=(img.naturalWidth-k)/2,sy=(img.naturalHeight-k)*0.3;c.getContext("2d").drawImage(img,sx,sy,k,k,0,0,S2,S2);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",0.82))}catch(e){rej(e)}};
+ img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("Bild"))};img.src=url})}
 function deleteStudent(id){delete D.students[id];for(const [k,l] of Object.entries(D.lessons))if(l.sid===id)delete D.lessons[k];for(const [k,r] of Object.entries(D.reminders))if(r.sid===id)delete D.reminders[k];for(const e of Object.values(D.events))if(e.sids)e.sids=e.sids.filter(x=>x!==id);changed()}
 
 /* ----- Stunden-Dialog ----- */
@@ -1101,6 +1130,7 @@ const ACT={
  autoPlan:()=>autoPlan(),
  resetYear:()=>confirmSheet(`Streichungen ${S.planYear} zurücksetzen?`,"Alle gestrichenen Tage dieses Jahres werden wieder zu Unterrichtstagen.","Zurücksetzen",()=>{for(const d of Object.keys(D.settings.struck))if(d.startsWith(String(S.planYear)))delete D.settings.struck[d];changed()}),
  termsPdf:()=>termsPdf(),freeDaysPdf:()=>freeDaysPdf(),
+ reactivate:d=>{const s=D.students[d.id];if(!s)return;s.status="aktiv";delete s.pauseUntil;delete s.pauseNote;changed();toast(`${s.name} ist wieder aktiv.`)},
  lessonPaid:d=>{const l=D.lessons[d.id];if(l){l.paid=!l.paid;changed()}},
  monthPaid:d=>{const st=D.students[d.sid];if(!st)return;st.paid=st.paid||{};if(st.paid[d.m])delete st.paid[d.m];else st.paid[d.m]=true;changed()},
  remToggle:d=>{const r=D.reminders[d.id];if(r){r.done=!r.done;r.doneAt=r.done?todayStr():null;changed();if(r.done)toast("Erledigt.","Rückgängig",()=>{r.done=false;r.doneAt=null;changed()})}},
