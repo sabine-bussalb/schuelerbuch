@@ -40,7 +40,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-[hidden]{display:none!important}
+[hidden]{display:none!important}.notes{margin-top:8px;display:flex;flex-direction:column;gap:4px}.nline{display:grid;grid-template-columns:110px 1fr;gap:8px;font-size:15px}.nlab{color:var(--muted,#6b6b76);font-size:14px;white-space:nowrap}.nval{white-space:pre-wrap}.yhead{padding:8px 16px;font-weight:700;font-size:14px;letter-spacing:.06em;color:var(--muted,#6b6b76);background:var(--soft,#f4eef2)}.rep summary{padding:12px 16px;cursor:pointer;list-style:none}.rep summary::-webkit-details-marker{display:none}.replist{display:flex;flex-direction:column;border-top:1px solid var(--line,#e5e5ea)}.reprow{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;border:0;border-top:1px solid var(--line,#e5e5ea);background:none;font:inherit;text-align:left;cursor:pointer;color:inherit}.reprow:first-child{border-top:0}.prevnote{background:var(--soft,#f4eef2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}@media(max-width:520px){.nline{grid-template-columns:1fr;gap:0}}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.45;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -609,7 +609,7 @@ VIEWS.student=()=>{
  // Stunden
  const hist=(lessonIdx().bySid[st.id]||[]).filter(l=>l.date<=t&&l.status!=="offen").sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
  out+=block("Nächste Stunden",`<div class="card list">${nx.length?nx.map(l=>lessonRow(l,true)).join(""):`<p class="none">Für die nächsten Wochen ist keine Stunde geplant.</p>`}</div>`,`<button class="btn ghost sm" data-act="addAppt" data-date="${t}" data-sid="${h(st.id)}">${icon("plus")} Einzeltermin</button>`);
- out+=block(`Unterrichtstagebuch <span style="text-transform:none;letter-spacing:0;font-weight:400">(${hist.filter(l=>l.status==="gehalten").length} Stunden gehalten)</span>`,`<div class="card list">${hist.length?hist.slice(0,S.histAll?999:15).map(l=>`<div class="srow" data-act="lesson" data-id="${h(l.id)}" role="button" tabindex="0" style="align-items:flex-start"><div class="ltime" style="width:62px"><small>${WDS[wd(l.date)]}</small><b>${fmtDs(l.date)}</b></div><div class="grow"><div>${l.status==="gehalten"?`<span class="pill good">${icon("check")} gehalten</span>`:`<span class="pill bad">abgesagt${l.by==="ich"?" · ich":l.by==="schueler"?" · Schüler":""}</span>`}${l.kind==="nachhol"?` <span class="chip acc">Nachholstunde</span>`:""}</div>${l.note?`<div style="white-space:pre-wrap;margin-top:6px">${h(l.note)}</div>`:""}</div></div>`).join("")+(hist.length>15&&!S.histAll?`<p class="none"><button class="btn ghost sm" data-act="histAll">Alle ${hist.length} anzeigen</button></p>`:""):`<p class="none">Hier erscheinen alle vergangenen Stunden mit deinen Notizen, sobald du sie als gehalten oder abgesagt markiert hast.</p>`}</div>`);
+ out+=block(`Unterrichtstagebuch <span style="text-transform:none;letter-spacing:0;font-weight:400">(${hist.filter(l=>l.status==="gehalten").length} Stunden gehalten)</span>`,`<div id="diary">${diaryHtml(st,hist)}</div>`);
  return out;
 };
 VIEWS.pay=()=>{
@@ -886,7 +886,7 @@ function doRender(){
  S.keepScroll=true;
 }
 document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
-function go(view,arg){if(view==="terms"||view==="year"||view==="stats")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;window.scrollTo(0,0);render()}
+function go(view,arg){if(view==="terms"||view==="year"||view==="stats")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
 
 /* ================= Toast ================= */
 let toastT;
@@ -976,17 +976,36 @@ function resizePhoto(file){return new Promise((res,rej)=>{const url=URL.createOb
 function deleteStudent(id){delete D.students[id];for(const [k,l] of Object.entries(D.lessons))if(l.sid===id)delete D.lessons[k];for(const [k,r] of Object.entries(D.reminders))if(r.sid===id)delete D.reminders[k];for(const e of Object.values(D.events))if(e.sids)e.sids=e.sids.filter(x=>x!==id);changed()}
 
 /* ----- Stunden-Dialog ----- */
-function cleanLesson(l){return{id:l.id,sid:l.sid,date:l.date,time:l.time||"",dur:+l.dur||null,kind:l.kind||"einzel",status:l.status||"offen",by:l.status==="abgesagt"?(l.by||null):null,nachholen:l.status==="abgesagt"?!!l.nachholen:false,nachholId:l.nachholId||null,nachholFor:l.nachholFor||null,note:l.note||"",paid:!!l.paid,sick:l.status==="abgesagt"&&l.by==="ich"&&!!l.sick,example:l.example||undefined}}
+function cleanLesson(l){return{id:l.id,sid:l.sid,date:l.date,time:l.time||"",dur:+l.dur||null,kind:l.kind||"einzel",status:l.status||"offen",by:l.status==="abgesagt"?(l.by||null):null,nachholen:l.status==="abgesagt"?!!l.nachholen:false,nachholId:l.nachholId||null,nachholFor:l.nachholFor||null,note:l.note||"",pieces:l.pieces||"",tech:l.tech||"",paid:!!l.paid,sick:l.status==="abgesagt"&&l.by==="ich"&&!!l.sick,example:l.example||undefined}}
 function saveLesson(l){D.lessons[l.id]=cleanLesson(l);changed()}
 function markHeld(id){const l=lessonById(id);if(!l)return;const prev=D.lessons[id]?JSON.parse(JSON.stringify(D.lessons[id])):null;l.status="gehalten";saveLesson(l);const st=D.students[l.sid];
  let msg=`${st?st.name:"Stunde"}: gehalten`;if(st&&st.billing==="zehner"){const c=cardStats(st);msg+=c.none?" · keine Karte!":` · noch ${Math.max(c.remaining,0)} auf der Karte`}
  toast(msg,"Rückgängig",()=>{if(prev)D.lessons[id]=prev;else delete D.lessons[id];changed();toast("Rückgängig gemacht.")})}
+function diaryHtml(st,hist){
+ if(!hist.length)return`<div class="card list"><p class="none">Hier erscheinen alle vergangenen Stunden mit deinen Notizen, sobald du sie als gehalten oder abgesagt markiert hast.</p></div>`;
+ const q=(S.dq&&S.dqSid===st.id?S.dq:"").trim().toLowerCase();
+ const rep={};for(const l of hist)if(l.status==="gehalten"&&l.pieces)for(const raw of l.pieces.split(/\n/)){const t=raw.trim();if(!t)continue;const k=t.toLowerCase();const r=rep[k]=rep[k]||{name:t,n:0,first:l.date,last:l.date};r.n++;if(l.date<r.first)r.first=l.date;if(l.date>r.last)r.last=l.date}
+ const R=Object.values(rep).sort((a,b)=>b.last.localeCompare(a.last));
+ let L=hist;if(q)L=hist.filter(l=>[l.pieces,l.tech,l.note].join(" ").toLowerCase().includes(q));
+ const lim=q||S.histAll?L.length:15;let out=`<input class="search" type="search" data-diaryq="${h(st.id)}" placeholder="Notizen durchsuchen, z. B. ein Stück oder „Atmung“ …" value="${h(q?S.dq:"")}" autocomplete="off" aria-label="Notizen durchsuchen" style="margin-bottom:10px">`;
+ if(R.length&&!q)out+=`<details class="card rep" style="margin-bottom:10px"><summary><b>🎵 Repertoire</b> <span class="muted">· ${R.length} Stück${R.length===1?"":"e"}</span></summary><div class="replist">${R.map(r=>`<button type="button" class="reprow" data-act="diarySearch" data-sid="${h(st.id)}" data-q="${h(r.name)}"><span>${h(r.name)}</span><span class="muted">${r.n}× · ${fmtD(r.first)===fmtD(r.last)?fmtD(r.last):`${fmtD(r.first)} – ${fmtD(r.last)}`}</span></button>`).join("")}</div></details>`;
+ if(!L.length)return out+`<div class="card list"><p class="none">Keine Notiz gefunden.</p></div>`;
+ let y=null,rows="";
+ for(const l of L.slice(0,lim)){const yy=l.date.slice(0,4);if(yy!==y){y=yy;rows+=`<div class="yhead">${yy}</div>`}
+  rows+=`<div class="srow" data-act="lesson" data-id="${h(l.id)}" role="button" tabindex="0" style="align-items:flex-start"><div class="ltime" style="width:62px"><small>${WDS[wd(l.date)]}</small><b>${fmtDs(l.date)}</b></div><div class="grow"><div>${l.status==="gehalten"?`<span class="pill good">${icon("check")} gehalten</span>`:`<span class="pill bad">abgesagt${l.by==="ich"?" · ich":l.by==="schueler"?" · Schüler":""}</span>`}${l.kind==="nachhol"?` <span class="chip acc">Nachholstunde</span>`:""}</div>${hasNotes(l)?`<div class="notes">${noteBlock(l)}</div>`:""}</div></div>`}
+ out+=`<div class="card list">${rows}${L.length>lim?`<p class="none"><button class="btn ghost sm" data-act="histAll">Alle ${L.length} anzeigen</button></p>`:""}</div>`;
+ if(q)out+=`<p class="muted" style="margin:8px 2px 0;font-size:14px">${L.length} Stunde${L.length===1?"":"n"} mit „${h(S.dq.trim())}“ · <button class="btn ghost sm" data-act="diarySearch" data-sid="${h(st.id)}" data-q="">Suche löschen</button></p>`;
+ return out;
+}
+const hasNotes=l=>!!(l.pieces||l.tech||l.note);
+const noteBlock=l=>[["🎵","Stücke",l.pieces],["🎤","Technik",l.tech],["📝","Sonstiges",l.note]].filter(x=>x[2]).map(([i,t,v])=>`<div class="nline"><span class="nlab">${i} ${t}</span><span class="nval">${h(v)}</span></div>`).join("");
 function openLesson(id,preset){
  const l=lessonById(id);if(!l)return;Object.assign(l,preset||{});const st=D.students[l.sid];if(!st)return;
  if(preset&&preset.status==="abgesagt"&&!l.by){l.by="schueler"}
  const nhL=l.nachholId?lessonById(l.nachholId):null,forL=l.nachholFor?lessonById(l.nachholFor):null;
  const rems=()=>{const rs=Object.values(D.reminders).filter(r=>r.sid===st.id&&!r.done);return rs.length?rs.map(r=>`<div class="remrow" style="padding:6px 0"><button type="button" class="check" data-sact="remDone" data-id="${h(r.id)}" aria-label="Erledigt"></button><div class="grow">${h(r.text)}</div></div>`).join(""):`<p class="hint">Keine offenen Erinnerungen.</p>`};
  const kindLbl={regel:"Feste Stunde",einzel:"Einzeltermin",nachhol:"Nachholstunde"}[l.kind]||"";
+ const prevL=(lessonIdx().bySid[st.id]||[]).filter(x=>x.id!==l.id&&(x.date+x.time)<(l.date+(l.time||""))&&hasNotes(x)).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time))[0];
  openSheet(`${sheetHead(h(st.name),`${fmtLong(l.date)} · ${h(l.time||"")} Uhr · ${kindLbl}`)}
   <form id="lf" novalidate style="display:flex;flex-direction:column;gap:16px">
   ${forL?`<p class="info" style="margin:0">Nachholstunde für die abgesagte Stunde vom ${fmtD(forL.date)}.</p>`:""}
@@ -999,7 +1018,10 @@ function openLesson(id,preset){
    ${st.billing==="zehner"?`<p class="hint">Abgesagte Stunden werden nicht von der Zehnerkarte abgezogen.</p>`:""}
   </div>
   ${st.billing==="einzeln"?`<label class="cbline" data-when="status=gehalten"><input type="checkbox" name="paid" ${l.paid?"checked":""}> Bezahlt (${euro(st.price)})</label>`:""}
-  <div class="field"><label for="l_note">Was haben wir gemacht?</label><textarea class="inp" id="l_note" name="note" placeholder="z. B. Atemübungen, Stück XY ab Takt 20, Registerwechsel">${h(l.note||"")}</textarea></div>
+  ${prevL?`<div class="prevnote"><div class="lbl" style="margin-bottom:4px">Letzte Stunde · ${WDS[wd(prevL.date)]} ${fmtD(prevL.date)}</div>${noteBlock(prevL)}</div>`:""}
+  <div class="field"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><label for="l_pc" style="font-weight:700;font-size:15px">🎵 Stücke</label>${prevL&&prevL.pieces&&!l.pieces?`<button type="button" class="btn ghost sm" data-sact="samePieces">Wie letztes Mal</button>`:""}</div><textarea class="inp" id="l_pc" name="pieces" rows="2" placeholder="Ein Stück pro Zeile">${h(l.pieces||"")}</textarea></div>
+  <div class="field"><label for="l_te">🎤 Technik</label><textarea class="inp" id="l_te" name="tech" rows="2" placeholder="z. B. Atmung, Stütze, Registerwechsel, Vokale">${h(l.tech||"")}</textarea></div>
+  <div class="field"><label for="l_note">📝 Sonstiges</label><textarea class="inp" id="l_note" name="note" rows="2" placeholder="Alles andere">${h(l.note||"")}</textarea></div>
   <div class="field"><span class="lbl">${icon("bell")} Fürs nächste Mal</span><div id="lrems">${rems()}</div>
    <div style="display:flex;gap:8px"><input class="inp" name="newRem" placeholder="z. B. Noten mitbringen, Aufnahme machen" autocomplete="off"><button type="button" class="btn" data-sact="addRem">Merken</button></div></div>
   <details class="more"><summary>Termin verschieben</summary><div class="three"><div class="field"><label for="l_d">Datum</label><input class="inp" id="l_d" type="date" name="date" value="${h(l.date)}"></div><div class="field"><label for="l_t">Uhrzeit</label><input class="inp" id="l_t" type="time" name="time" value="${h(l.time||"")}"></div><div class="field"><label for="l_du">Dauer</label><select class="inp" id="l_du" name="dur">${[30,45,60].map(d=>`<option value="${d}" ${+(l.dur||st.dur)===d?"selected":""}>${d} Min.</option>`).join("")}</select></div></div></details>
@@ -1019,13 +1041,14 @@ function openLesson(id,preset){
   p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;const a=b.dataset.sact;
    if(a==="close")closeSheet();
    else if(a==="addRem")addRem();
+   else if(a==="samePieces"){$("#l_pc",p).value=prevL.pieces;b.remove()}
    else if(a==="remDone"){const r=D.reminders[b.dataset.id];if(r){r.done=true;r.doneAt=todayStr();changed();$("#lrems",p).innerHTML=rems()}}
    else if(a==="toStudent"){closeSheet();go("student",st.id)}
    else if(a==="del")confirmSheet("Termin löschen?","Dieser Einzeltermin wird entfernt.","Löschen",()=>{const L=D.lessons[l.id];if(L&&L.nachholFor&&D.lessons[L.nachholFor])D.lessons[L.nachholFor].nachholId=null;delete D.lessons[l.id];changed()});
   };
   f.onsubmit=e=>{e.preventDefault();const v=formVals(f);
    addRem();
-   l.status=v.status;l.by=v.by||null;l.sick=!!v.sick&&v.status==="abgesagt"&&v.by==="ich";if("paid" in v)l.paid=!!v.paid&&v.status==="gehalten";l.nachholen=!!v.nachholen;l.note=(v.note||"").trim();
+   l.status=v.status;l.by=v.by||null;l.sick=!!v.sick&&v.status==="abgesagt"&&v.by==="ich";if("paid" in v)l.paid=!!v.paid&&v.status==="gehalten";l.nachholen=!!v.nachholen;l.note=(v.note||"").trim();l.pieces=(v.pieces||"").trim();l.tech=(v.tech||"").trim();
    if(v.date)l.date=v.date;if(v.time!==undefined)l.time=v.time;if(v.dur)l.dur=+v.dur;
    if(l.status==="abgesagt"&&l.nachholen&&!l.nachholId&&v.nhDate){const n={id:"n_"+newId(),sid:st.id,date:v.nhDate,time:v.nhTime||l.time,dur:l.dur||st.dur,kind:"nachhol",status:"offen",nachholFor:l.id,note:""};saveLesson(n);l.nachholId=n.id}
    saveLesson(l);closeSheet();toast("Gespeichert.");
@@ -1194,7 +1217,7 @@ const ACT={
  nav:d=>go(d.view),
  student:d=>go("student",d.id),
  back:()=>go(S.from&&S.from!=="student"?S.from:"students"),
- weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
+ diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
  payPrev:()=>{S.payMonth=addMonths(S.payMonth,-1);render()},payNext:()=>{S.payMonth=addMonths(S.payMonth,1);render()},
  lesson:d=>openLesson(d.id),
  held:d=>markHeld(d.id),
@@ -1232,7 +1255,8 @@ document.addEventListener("click",e=>{
  if(e.target.closest("#sheet"))return;
  const el=e.target.closest("[data-act]");if(!el)return;const fn=ACT[el.dataset.act];if(!fn)return;e.preventDefault();fn(el.dataset,el,e);
 });
-$("#main").addEventListener("input",e=>{if(e.target.id==="search"){S.search=e.target.value;$("#slist").innerHTML=studentList()}});
+$("#main").addEventListener("input",e=>{if(e.target.id==="search"){S.search=e.target.value;$("#slist").innerHTML=studentList()}
+ else if(e.target.dataset.diaryq){S.dq=e.target.value;S.dqSid=e.target.dataset.diaryq;clearTimeout(S.dqT);S.dqT=setTimeout(()=>{const st=D.students[S.dqSid];const box=e.target.closest(".blk")||null;if(!st)return;const pos=e.target.selectionStart;const hist=(lessonIdx().bySid[st.id]||[]).filter(l=>l.date<=todayStr()&&l.status!=="offen").sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));const wrap=$("#diary");if(!wrap)return;wrap.innerHTML=diaryHtml(st,hist);const inp=$("[data-diaryq]",wrap);inp.focus();try{inp.setSelectionRange(pos,pos)}catch(_){}},200)}});
 $("#main").addEventListener("change",e=>{
  const t=e.target;const st=D.settings;
  if(t.hasAttribute("data-weekjump")){if(t.value){S.week=mondayOf(t.value);S.keepScroll=false;t.blur();window.scrollTo(0,0);render()}return}
