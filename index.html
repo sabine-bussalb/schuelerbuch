@@ -102,7 +102,7 @@ section.block{display:flex;flex-direction:column;gap:10px}
 img.av{object-fit:cover;display:block;background:var(--line)}
 /* Wochenplan */
 .weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.weeknav .title{font-weight:700;min-width:190px;text-align:center;font-variant-numeric:tabular-nums}
+.weeknav .jump{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted,#666);margin-left:4px}.weeknav .jump .inp{width:auto;padding:6px 8px;min-height:0}.weeknav .title{font-weight:700;min-width:190px;text-align:center;font-variant-numeric:tabular-nums}
 .day{display:flex;flex-direction:column;gap:8px}
 .dhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .dhead h3 span{color:var(--muted);font-weight:400}
@@ -210,8 +210,8 @@ details.more[open] summary{margin-bottom:10px}
 .bv{height:120px;width:100%;max-width:34px;background:var(--bg);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}
 .bv span{display:block;width:100%;background:var(--accent);border-radius:6px 6px 0 0}
 .bl{font-size:12px;color:var(--muted)}
-.bn{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-height:14px}
-@media (max-width:700px){.bn{display:none}}
+.bn{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-height:14px;color:var(--ink)}
+@media (max-width:700px){.bn{font-size:9.5px;letter-spacing:-.02em}.bl{font-size:10.5px}.bars{gap:3px}}
 /* Jahresplan */
 .ymonth{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;padding:6px 0;border-top:1px solid var(--line)}
 .ymonth:first-child{border-top:0}
@@ -526,7 +526,7 @@ VIEWS.plan=()=>{
  const show=days;
  const all=days.flatMap(d=>lessonsOn(d));const held=all.filter(l=>l.status==="gehalten").length,canc=all.filter(l=>l.status==="abgesagt").length;
  let out=`<header class="phead"><div><p class="eyebrow">Kalenderwoche ${isoWeek(w)}</p><h1>Stundenplan</h1></div>
-  <div class="weeknav"><button class="btn" data-act="weekPrev" aria-label="Vorige Woche">${icon("left")}</button><span class="title">${fmtDm(w)} – ${fmtDm(addDays(w,6))}</span><button class="btn" data-act="weekNext" aria-label="Nächste Woche">${icon("right")}</button>${w!==mondayOf(t)?`<button class="btn" data-act="weekToday">Diese Woche</button>`:""}</div></header>`;
+  <div class="weeknav"><button class="btn" data-act="weekPrev" aria-label="Vorige Woche">${icon("left")}</button><span class="title">${fmtDm(w)} – ${fmtDm(addDays(w,6))}</span><button class="btn" data-act="weekNext" aria-label="Nächste Woche">${icon("right")}</button>${w!==mondayOf(t)?`<button class="btn" data-act="weekToday">Diese Woche</button>`:""}<label class="jump">Springen zu <input class="inp" type="date" data-weekjump value="${h(w)}" aria-label="Zu Datum springen"></label></div></header>`;
  out+=topBanners();
  out+=`<p class="muted" style="margin:-8px 0 0">${all.length} Stunden in dieser Woche${held?` · ${held} gehalten`:""}${canc?` · ${canc} abgesagt`:""}</p>`;
  for(const d of show){
@@ -849,8 +849,8 @@ VIEWS.stats=()=>{
  <header class="phead"><div><p class="eyebrow">Dein Wirtschaftsjahr auf einen Blick</p><h1>Jahresübersicht ${y}</h1></div>
   <div class="weeknav"><button class="btn" data-act="statPrev" aria-label="Voriges Jahr">${icon("left")}</button><span class="title" style="min-width:70px">${y}</span><button class="btn" data-act="statNext" aria-label="Nächstes Jahr">${icon("right")}</button><button class="btn primary" data-act="statsPdf">${icon("save")} PDF</button></div></header>
  ${topBanners()}
- <div class="sum">${tile("Einnahmen",euro(st.total),"laut Bezahlt-Häkchen")}${tile("Gehaltene Stunden",st.H.length,`${Math.round(st.minutes/60)} Zeitstunden`)}${tile("Schüler mit Unterricht",st.students,st.groups?`davon ${st.groups} Zweiergruppe${st.groups>1?"n":""}`:"")}${tile("Neu / beendet",`${st.neu} / ${st.ende}`,"angefangen / archiviert")}</div>
- ${block("Einnahmen pro Monat",`<div class="card pad">${bars(st.perMonth,maxI,v=>euro(v))}</div>`)}
+ <div class="sum">${tile("Einnahmen",euro(st.total),"laut Bezahlt-Häkchen")}${tile("Gehaltene Stunden",st.H.length,`${Math.round(st.minutes/60)} Zeitstunden`)}${tile("Schüler mit Unterricht",st.students,st.groups?`davon ${st.groups} Zweiergruppe${st.groups>1?"n":""}`:"")}${tile("Neue Schüler / aufgehört",`${st.neu} / ${st.ende}`,"laut „Unterricht seit“ / archiviert")}</div>
+ ${block("Einnahmen pro Monat (in €)",`<div class="card pad">${bars(st.perMonth,maxI,v=>Math.round(v).toLocaleString("de-DE"))}</div>`)}
  ${block("Einnahmen nach Art",`<div class="card list paytable">${[["Durchzahler",st.inc.durch],["Zehner- und Fünferkarten",st.inc.karten],["Einzelstunden",st.inc.einzeln]].map(([k,a])=>`<div class="prow" style="grid-template-columns:1fr auto"><div>${k}</div><div style="font-weight:700;font-variant-numeric:tabular-nums">${euro(a.reduce((x,y)=>x+y,0))}</div></div>`).join("")}<div class="prow" style="grid-template-columns:1fr auto"><div><b>Gesamt</b></div><div style="font-weight:800;font-variant-numeric:tabular-nums">${euro(st.total)}</div></div></div>
   <p class="muted" style="margin:0;font-size:14px">Gezählt wird, was du als bezahlt abgehakt hast. Karten zählen im Monat des Kaufs. Die Musikschule rechnet selbst ab und ist deshalb nicht enthalten.</p>`)}
  ${block("Gehaltene Stunden pro Monat",`<div class="card pad">${bars(st.held,maxH,v=>String(v))}</div>`)}
@@ -1033,6 +1033,7 @@ function openLesson(id,preset){
   };
  });
 }
+const apptRow=(d,t)=>`<div class="apptrow" style="display:grid;grid-template-columns:1.4fr 1fr auto;gap:8px;align-items:center"><input class="inp" type="date" data-k="d" value="${h(d)}" aria-label="Datum"><input class="inp" type="time" data-k="t" value="${h(t)}" aria-label="Uhrzeit"><button type="button" class="xbtn" data-sact="delRow" aria-label="Termin entfernen">${icon("x")}</button></div>`;
 function openAppt(date,sid){
  const L=students().filter(s=>s.status==="aktiv");
  if(!L.length){toast("Lege zuerst einen Schüler an.");return}
@@ -1040,14 +1041,20 @@ function openAppt(date,sid){
  openSheet(`${sheetHead("Einzeltermin",fmtLong(date))}
   <form id="af" novalidate style="display:flex;flex-direction:column;gap:16px">
   <div class="field"><label for="a_s">Schüler</label><select class="inp" id="a_s" name="sid">${L.map(s=>`<option value="${h(s.id)}" ${first&&s.id===first.id?"selected":""}>${h(s.name)}</option>`).join("")}</select></div>
-  <div class="three"><div class="field"><label for="a_d">Datum</label><input class="inp" id="a_d" type="date" name="date" value="${h(date)}"></div><div class="field"><label for="a_t">Uhrzeit</label><input class="inp" id="a_t" type="time" name="time" value="16:00"></div><div class="field"><label for="a_du">Dauer</label><select class="inp" id="a_du" name="dur">${[30,45,60].map(d=>`<option value="${d}" ${first&&+first.dur===d?"selected":""}>${d} Min.</option>`).join("")}</select></div></div>
-  <p class="hint">Für Stunden außer der Reihe. Feste wöchentliche Termine trägst du beim Schüler ein.</p>
+  <div class="field"><label for="a_du">Dauer</label><select class="inp" id="a_du" name="dur" style="max-width:160px">${[30,45,60].map(d=>`<option value="${d}" ${first&&+first.dur===d?"selected":""}>${d} Min.</option>`).join("")}</select></div>
+  <div class="field"><span class="lbl">Datum und Uhrzeit</span><div id="arows" style="display:flex;flex-direction:column;gap:8px">${apptRow(date,"16:00")}</div>
+  <div><button type="button" class="btn sm" data-sact="addRow">${icon("plus")} Weiteres Datum</button></div></div>
+  <p class="hint">Für flexible Schüler und Stunden außer der Reihe. Du kannst hier gleich mehrere Termine auf einmal anlegen, auch für die kommenden Monate. Feste wöchentliche Termine trägst du beim Schüler ein.</p>
   <div class="foot"><div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Termin anlegen</button></div></div></form>`,p=>{
   const f=$("#af",p);
   f.addEventListener("change",e=>{if(e.target.name==="sid"){const s=D.students[e.target.value];if(s)$("#a_du",p).value=String(s.dur)}});
-  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(b&&b.dataset.sact==="close")closeSheet()};
-  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.date||!v.time){toast("Bitte Datum und Uhrzeit eintragen.");return}
-   saveLesson({id:"e_"+newId(),sid:v.sid,date:v.date,time:v.time,dur:+v.dur,kind:"einzel",status:"offen",note:""});closeSheet();toast("Termin angelegt.")};
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();
+   if(b.dataset.sact==="addRow"){const rows=$$(".apptrow",p),last=rows[rows.length-1];const ld=last?$('[data-k="d"]',last).value:"",lt=last?$('[data-k="t"]',last).value:"16:00";$("#arows",p).insertAdjacentHTML("beforeend",apptRow(ld?addDays(ld,7):"",lt||"16:00"));const n=$$(".apptrow",p);$('[data-k="d"]',n[n.length-1]).focus()}
+   if(b.dataset.sact==="delRow"){if($$(".apptrow",p).length>1)b.closest(".apptrow").remove()}};
+  f.onsubmit=e=>{e.preventDefault();const v=formVals(f);const R=$$(".apptrow",p).map(r=>({d:$('[data-k="d"]',r).value,t:$('[data-k="t"]',r).value})).filter(r=>r.d||r.t);
+   if(!R.length||R.some(r=>!r.d||!r.t)){toast("Bitte bei jedem Termin Datum und Uhrzeit eintragen.");return}
+   for(const r of R){const id="e_"+newId();D.lessons[id]=cleanLesson({id,sid:v.sid,date:r.d,time:r.t,dur:+v.dur,kind:"einzel",status:"offen",note:""})}
+   changed();closeSheet();toast(R.length===1?"Termin angelegt.":`${R.length} Termine angelegt.`)};
  });
 }
 /* ----- Zehnerkarte ----- */
@@ -1062,11 +1069,11 @@ function openCard(sid,cid){
   <div class="field"><span class="lbl">Karte</span>${seg("size",[[10,"10er-Karte"],[5,"5er-Karte"]],c.size||10)}</div>
     <div class="two"><div class="field"><label for="c_b">Gekauft am</label><input class="inp" id="c_b" type="date" name="bought" value="${h(c.bought)}"></div><div class="field"><label for="c_p">Preis</label><input class="inp" id="c_p" name="price" inputmode="decimal" value="${h(c.price==null?"":c.price)}" placeholder="€"></div></div>
   <label class="cbline"><input type="checkbox" name="paid" ${c.paid?"checked":""}> Bezahlt</label>
-  ${first||+c.preUsed?`<div class="field"><label for="c_u">Davon schon verbraucht</label><input class="inp" id="c_u" type="number" min="0" max="10" name="preUsed" value="${h(c.preUsed||0)}" style="max-width:120px"><p class="hint">Nur wenn du eine angefangene Karte aus Tap Forms übernimmst. Sonst 0 lassen.</p></div>`:""}
+  <div class="field"><label for="c_u">Davon schon verbraucht (vor der App)</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="inp" id="c_u" type="number" min="0" max="${c.size||10}" name="preUsed" value="${h(c.preUsed||0)}" style="max-width:120px"><button type="button" class="btn sm" data-sact="usedAll">Ganz aufgebraucht</button></div><p class="hint">Für Karten, die du nachträglich einträgst: Stunden, die nicht in der App abgehakt sind. Bei einer neuen Karte 0 lassen.</p></div>
   <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Karte löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
   const f=$("#cf",p);let priceTouched=!isNew;$("#c_p",p).addEventListener("input",()=>priceTouched=true);
-  f.addEventListener("change",e=>{if(e.target.name==="size"&&!priceTouched){const pr=D.settings.cardPrice[+e.target.value];$("#c_p",p).value=pr==null?"":pr}});
-  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="del")confirmSheet("Karte löschen?","Die Karte wird entfernt. Die Stunden selbst bleiben erhalten.","Löschen",()=>{st.cards=st.cards.filter(x=>x.id!==c.id);changed()})};
+  f.addEventListener("change",e=>{if(e.target.name==="size"){const u=$("#c_u",p);u.max=+e.target.value;if(+u.value>+e.target.value)u.value=e.target.value;if(!priceTouched){const pr=D.settings.cardPrice[+e.target.value];$("#c_p",p).value=pr==null?"":pr}}});
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="usedAll"){const sz=$('[name="size"]:checked',f);$("#c_u",p).value=sz?sz.value:(c.size||10)}if(b.dataset.sact==="del")confirmSheet("Karte löschen?","Die Karte wird entfernt. Die Stunden selbst bleiben erhalten.","Löschen",()=>{st.cards=st.cards.filter(x=>x.id!==c.id);changed()})};
   f.onsubmit=e=>{e.preventDefault();const v=formVals(f);c.size=+v.size||10;c.bought=v.bought||todayStr();c.price=num(v.price);c.paid=!!v.paid;c.preUsed=Math.max(0,Math.min(c.size,+v.preUsed||0));
    st.cards=st.cards||[];const i=st.cards.findIndex(x=>x.id===c.id);if(i>=0)st.cards[i]=c;else st.cards.push(c);
    changed();closeSheet();toast("Karte gespeichert.")};
@@ -1220,6 +1227,7 @@ document.addEventListener("click",e=>{
 $("#main").addEventListener("input",e=>{if(e.target.id==="search"){S.search=e.target.value;$("#slist").innerHTML=studentList()}});
 $("#main").addEventListener("change",e=>{
  const t=e.target;const st=D.settings;
+ if(t.hasAttribute("data-weekjump")){if(t.value){S.week=mondayOf(t.value);S.keepScroll=false;t.blur();window.scrollTo(0,0);render()}return}
  if(t.dataset.free){const f=st.free.find(x=>x.id===t.dataset.free);if(f){f[t.dataset.field]=t.value;changed()}}
  else if(t.dataset.price){st.prices[t.dataset.price]=t.value.split(/[;,]\s*|\s+/).map(num).filter(x=>x!=null);changed()}
  else if(t.dataset.cardprice){st.cardPrice[t.dataset.cardprice]=num(t.value);changed()}
