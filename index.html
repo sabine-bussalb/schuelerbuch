@@ -1195,15 +1195,21 @@ function openEvent(id,type,date){
   <div class="field"><label for="e_t">Titel</label><input class="inp" id="e_t" name="title" value="${h(ev.title)}" placeholder="z. B. Schülerkonzert im Advent" autocomplete="off"></div>
   <div class="field"><span class="lbl">Art</span>${seg("type",[["konzert","Konzert"],["probe","Probe"],["vorspiel","Vorspiel"],["musikschule","Musikschule"],["sonstiges","Sonstiges"]],ev.type)}</div>
   <div class="two"><div class="field"><label for="e_d">Datum</label><input class="inp" id="e_d" type="date" name="date" value="${h(ev.date)}"></div><div class="field"><label for="e_ti">Uhrzeit</label><input class="inp" id="e_ti" type="time" name="time" value="${h(ev.time||"")}"></div></div>
+  <div class="field" style="margin-top:-6px"><div id="eextra" style="display:flex;flex-direction:column;gap:8px"></div><div><button type="button" class="btn sm" data-sact="addRow">${icon("plus")} Weiteres Datum${isNew?"":" (als neuer Termin)"}</button></div><p class="hint" id="eexhint" hidden>Für jedes weitere Datum wird ein eigener Termin mit gleichem Titel, Ort, Mitwirkenden und Notizen angelegt. Danach kannst du jeden einzeln ändern.</p></div>
   <div class="field"><label for="e_p">Ort</label><input class="inp" id="e_p" name="place" value="${h(ev.place||"")}" autocomplete="off"></div>
   <div class="field"><span class="lbl">Wer singt mit?</span>${L.length?`<div class="plist">${L.map(s=>`<label class="cbline"><input type="checkbox" name="p_${h(s.id)}" ${(ev.sids||[]).includes(s.id)?"checked":""}> ${h(s.name)}</label>`).join("")}</div>`:`<p class="hint">Noch keine aktiven Schüler.</p>`}</div>
   <div class="field"><label for="e_n">Notizen</label><textarea class="inp" id="e_n" name="note" placeholder="Programm, Probe, Mitbringen …">${h(ev.note||"")}</textarea></div>
   <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
   const f=$("#ef",p);
-  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();if(b.dataset.sact==="del")confirmSheet("Termin löschen?",`„${h(ev.title||EVT[ev.type])}“ wird entfernt.`,"Löschen",()=>{delete D.events[ev.id];changed()})};
+  p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();
+   if(b.dataset.sact==="addRow"){const rows=$$(".apptrow",p);const ld=rows.length?$('[data-k="d"]',rows[rows.length-1]).value:$("#e_d",p).value;const lt=rows.length?$('[data-k="t"]',rows[rows.length-1]).value:$("#e_ti",p).value;$("#eextra",p).insertAdjacentHTML("beforeend",apptRow(ld?addDays(ld,7):"",lt||""));$("#eexhint",p).hidden=false}
+   if(b.dataset.sact==="delRow")b.closest(".apptrow").remove();
+   if(b.dataset.sact==="del")confirmSheet("Termin löschen?",`„${h(ev.title||EVT[ev.type])}“ wird entfernt.`,"Löschen",()=>{delete D.events[ev.id];changed()})};
   f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.date){toast("Bitte ein Datum eintragen.");return}
    ev.title=v.title.trim()||EVT[v.type];ev.type=v.type;ev.date=v.date;ev.time=v.time;ev.place=v.place.trim();ev.note=v.note.trim();ev.sids=Object.keys(v).filter(k=>k.startsWith("p_")&&v[k]).map(k=>k.slice(2));
-   D.events[ev.id]=ev;changed();closeSheet();toast("Gespeichert.")};
+   const R=$$(".apptrow",p).map(r=>({d:$('[data-k="d"]',r).value,t:$('[data-k="t"]',r).value})).filter(r=>r.d);
+   D.events[ev.id]=ev;for(const r of R){const c=JSON.parse(JSON.stringify(ev));c.id=newId();c.date=r.d;c.time=r.t||"";D.events[c.id]=c}
+   changed();closeSheet();toast(R.length?`${R.length+1} Termine gespeichert.`:"Gespeichert.")};
  });
 }
 
