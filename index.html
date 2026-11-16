@@ -131,7 +131,7 @@ img.av{object-fit:cover;display:block;background:var(--line)}
 .facts dd{margin:2px 0 0;font-weight:600}
 .punch{display:flex;gap:7px;flex-wrap:wrap;margin:6px 0}
 .punch span{width:34px;height:34px;border-radius:50%;border:2px solid var(--accent)}
-.punch span.used,.punch button.used{background:var(--accent)}.punch button{width:34px;height:34px;border-radius:50%;border:2px solid var(--accent);background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}.punch button.next{border-style:dashed;border-width:3px;animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{transform:scale(1.12)}}.punch.empty button.used{background:var(--bad);border-color:var(--bad)}@media(prefers-reduced-motion:reduce){.punch button.next{animation:none}}
+.punch span.used,.punch button.used{background:var(--accent)}.punch{gap:6px 4px}.slot{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px}.slot small{font-size:12px;color:var(--muted);min-height:15px;font-variant-numeric:tabular-nums}.punch span,.punch button{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--accent)}.punch span.used,.punch button.used{color:#fff}.cdates{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.5}.punch button{width:34px;height:34px;border-radius:50%;border:2px solid var(--accent);background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}.punch button.next{border-style:dashed;border-width:3px;animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{transform:scale(1.12)}}.punch.empty button.used{background:var(--bad);border-color:var(--bad)}@media(prefers-reduced-motion:reduce){.punch button.next{animation:none}}
 .punch.empty span{border-color:var(--bad)}
 .punch.empty span.used{background:var(--bad)}
 .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -406,12 +406,24 @@ function cardStats(st){
  if(!cards.length)return{none:true,remaining:0,cards:[]};
  const start=cards[0].bought||"2000-01-01";
  const held=(lessonIdx().bySid[st.id]||[]).filter(l=>l.status==="gehalten"&&l.date>=start).length;
- const pre=cards.reduce((s,c)=>s+(+c.preUsed||0),0);
+ const negP=cards.reduce((s,c)=>s+Math.max(0,-(+c.preUsed||0)),0);const pre=cards.reduce((s,c)=>s+Math.max(0,+c.preUsed||0),0)-Math.min(negP,held);
  const total=cards.reduce((s,c)=>s+(+c.size||10),0);
  const used=held+pre;let left=used,current=null,curUsed=0;
  for(const c of cards){const size=+c.size||10;if(left<size){current=c;curUsed=left;left=0;break}left-=size}
  const cur=current||cards[cards.length-1];const expires=cardExpiry(cur);
  return{cards,total,used,remaining:total-used,current,curUsed,over:current?0:left,last:cards[cards.length-1],expires};
+}
+function cardAlloc(st){
+ const cards=(st.cards||[]).slice().sort((a,b)=>(a.bought||"").localeCompare(b.bought||""));const res={};for(const c of cards)res[c.id]=[];
+ if(!cards.length)return{per:res,over:[]};
+ const start=cards[0].bought||"2000-01-01";
+ let held=(lessonIdx().bySid[st.id]||[]).filter(l=>l.status==="gehalten"&&l.date>=start).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
+ const neg=cards.reduce((s,c)=>s+Math.max(0,-(+c.preUsed||0)),0);held=held.slice(Math.min(neg,held.length));
+ const ev=[];for(const c of cards){for(let i=0;i<Math.max(0,+c.preUsed||0);i++)ev.push({pre:true,date:c.bought||"",k:0})}
+ for(const l of held)ev.push({pre:false,date:l.date,time:l.time,id:l.id,k:1});
+ ev.sort((a,b)=>a.date.localeCompare(b.date)||a.k-b.k);
+ let i=0;for(const c of cards){const size=+c.size||10;while(res[c.id].length<size&&i<ev.length)res[c.id].push(ev[i++])}
+ return{per:res,over:ev.slice(i)};
 }
 function cardExpiry(c){if(!c||!c.bought)return null;const d=parse(c.bought);d.setFullYear(d.getFullYear()+1);return addDays(ymd(d),-1)}
 function pauseRanges(st){const r=(st.pauses||[]).slice();if(st.status==="pausiert"&&st.pauseFrom)r.push({from:st.pauseFrom,to:null});return r}
@@ -590,11 +602,13 @@ VIEWS.student=()=>{
   const cs=cardStats(st);let body="";
   if(cs.none)body=`<p class="none">Noch keine Karte angelegt. Lege die aktuelle Karte an. Wenn sie schon angefangen ist, trägst du einfach ein, wie viele Stunden bereits verbraucht sind.</p>`;
   else{
-   const c=cs.current||cs.last;const size=+c.size||10;const used=cs.current?cs.curUsed:size;
-   body=`<div class="pad" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><div><span class="big">${cs.remaining>0?cs.remaining:0}</span> <span class="muted">${cs.remaining===1?"Stunde":"Stunden"} übrig</span></div><div class="muted">${cs.current?`Aktuelle Karte seit ${fmtD(c.bought)} · gültig bis ${fmtD(cs.expires)}`:"Alle Karten aufgebraucht"}${cs.over?` · ${cs.over} Stunde(n) ohne Karte`:""}</div></div>
-    <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>i===used&&cs.remaining>0?`<button type="button" class="next" data-act="punch" data-sid="${h(st.id)}" aria-label="Eine Stunde abstreichen"></button>`:i===used-1?`<button type="button" class="used" data-act="unpunch" data-sid="${h(st.id)}" aria-label="Letzte Stunde zurücknehmen"></button>`:`<span class="${i<used?"used":""}"></span>`).join("")}</div>
+   const c=cs.current||cs.last;const size=+c.size||10;const used=cs.current?cs.curUsed:size;const AL=cardAlloc(st);
+   body=`<div class="pad" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><div><span class="big">${cs.remaining>0?cs.remaining:0}</span> <span class="muted">${cs.remaining===1?"Stunde":"Stunden"} übrig</span></div><div class="muted">${cs.current?`Aktuelle Karte seit ${fmtD(c.bought)} · gültig bis ${fmtD(cs.expires)}`:"Alle Karten aufgebraucht"}${cs.over?` · ${cs.over} Stunde(n) ohne Karte`:""}</div></div>${AL.over.length?`<p class="cdates" style="color:var(--bad)">Ohne Karte gehalten: ${AL.over.map(e=>e.pre?"vorher":fmtDs(e.date)).join(" · ")}</p>`:""}
+    <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>{const e=AL.per[c.id][i];
+     const dot=i===used&&cs.remaining>0?`<button type="button" class="next" data-act="punch" data-sid="${h(st.id)}" aria-label="Eine Stunde abstreichen">${i+1}</button>`:i===used-1?`<button type="button" class="used" data-act="unpunch" data-sid="${h(st.id)}" aria-label="Letzte Stunde zurücknehmen">${i+1}</button>`:`<span class="${i<used?"used":""}">${i+1}</span>`;
+     return`<div class="slot">${dot}<small>${e?(e.pre?"vorher":fmtDs(e.date)):""}</small></div>`}).join("")}</div>
     <p class="muted" style="margin:4px 0 0;font-size:14px">${cs.remaining>0?"Auf den nächsten Punkt tippen = eine Stunde abstreichen. ":""}Abgesagte Stunden werden nie abgezogen, nur gehaltene.</p></div>
-    <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}${+c.preUsed>0?` · übernommen mit ${c.preUsed} verbrauchten Stunden`:+c.preUsed<0?` · Stand korrigiert`:""}</div></div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
+    <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}${+c.preUsed>0?` · übernommen mit ${c.preUsed} verbrauchten Stunden`:+c.preUsed<0?` · Stand korrigiert`:""}</div>${(()=>{const E=AL.per[c.id]||[];const d=E.filter(e=>!e.pre);return d.length?`<div class="cdates">Gehalten: ${d.map(e=>fmtDs(e.date)).join(" · ")}</div>`:""})()}</div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
   }
   out+=block("Zehnerkarte",`<div class="card">${body}</div>`,`<button class="btn ghost sm" data-act="newCard" data-sid="${h(st.id)}">${icon("plus")} Neue Karte</button>`);
  }
