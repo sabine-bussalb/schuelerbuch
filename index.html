@@ -130,8 +130,8 @@ img.av{object-fit:cover;display:block;background:var(--line)}
 .facts dt{color:var(--muted);font-size:14px}
 .facts dd{margin:2px 0 0;font-weight:600}
 .punch{display:flex;gap:7px;flex-wrap:wrap;margin:6px 0}
-.punch span{width:24px;height:24px;border-radius:50%;border:2px solid var(--accent)}
-.punch span.used{background:var(--accent)}
+.punch span{width:34px;height:34px;border-radius:50%;border:2px solid var(--accent)}
+.punch span.used,.punch button.used{background:var(--accent)}.punch button{width:34px;height:34px;border-radius:50%;border:2px solid var(--accent);background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}.punch button.next{border-style:dashed;border-width:3px;animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{transform:scale(1.12)}}.punch.empty button.used{background:var(--bad);border-color:var(--bad)}@media(prefers-reduced-motion:reduce){.punch button.next{animation:none}}
 .punch.empty span{border-color:var(--bad)}
 .punch.empty span.used{background:var(--bad)}
 .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -592,8 +592,8 @@ VIEWS.student=()=>{
   else{
    const c=cs.current||cs.last;const size=+c.size||10;const used=cs.current?cs.curUsed:size;
    body=`<div class="pad" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><div><span class="big">${cs.remaining>0?cs.remaining:0}</span> <span class="muted">${cs.remaining===1?"Stunde":"Stunden"} übrig</span></div><div class="muted">${cs.current?`Aktuelle Karte seit ${fmtD(c.bought)} · gültig bis ${fmtD(cs.expires)}`:"Alle Karten aufgebraucht"}${cs.over?` · ${cs.over} Stunde(n) ohne Karte`:""}</div></div>
-    <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>`<span class="${i<used?"used":""}"></span>`).join("")}</div>
-    <p class="muted" style="margin:4px 0 0;font-size:14px">Abgesagte Stunden werden nie abgezogen, nur gehaltene.</p></div>
+    <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>i===used&&cs.remaining>0?`<button type="button" class="next" data-act="punch" data-sid="${h(st.id)}" aria-label="Eine Stunde abstreichen"></button>`:i===used-1?`<button type="button" class="used" data-act="unpunch" data-sid="${h(st.id)}" aria-label="Letzte Stunde zurücknehmen"></button>`:`<span class="${i<used?"used":""}"></span>`).join("")}</div>
+    <p class="muted" style="margin:4px 0 0;font-size:14px">${cs.remaining>0?"Auf den nächsten Punkt tippen = eine Stunde abstreichen. ":""}Abgesagte Stunden werden nie abgezogen, nur gehaltene.</p></div>
     <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}${+c.preUsed>0?` · übernommen mit ${c.preUsed} verbrauchten Stunden`:+c.preUsed<0?` · Stand korrigiert`:""}</div></div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
   }
   out+=block("Zehnerkarte",`<div class="card">${body}</div>`,`<button class="btn ghost sm" data-act="newCard" data-sid="${h(st.id)}">${icon("plus")} Neue Karte</button>`);
@@ -978,6 +978,15 @@ function deleteStudent(id){delete D.students[id];for(const [k,l] of Object.entri
 /* ----- Stunden-Dialog ----- */
 function cleanLesson(l){return{id:l.id,sid:l.sid,date:l.date,time:l.time||"",dur:+l.dur||null,kind:l.kind||"einzel",status:l.status||"offen",by:l.status==="abgesagt"?(l.by||null):null,nachholen:l.status==="abgesagt"?!!l.nachholen:false,nachholId:l.nachholId||null,nachholFor:l.nachholFor||null,note:l.note||"",pieces:l.pieces||"",tech:l.tech||"",paid:!!l.paid,sick:l.status==="abgesagt"&&l.by==="ich"&&!!l.sick,example:l.example||undefined}}
 function saveLesson(l){D.lessons[l.id]=cleanLesson(l);changed()}
+function punchCard(sid){const st=D.students[sid];if(!st)return;const t=todayStr();const cs=cardStats(st);const from=cs.cards.length?cs.cards[0].bought||"":"";
+ for(let i=0;i<=42;i++){const d=addDays(t,-i);if(from&&d<from)break;const L=lessonsOn(d).filter(l=>l.sid===sid&&l.status==="offen").sort((a,b)=>(b.time||"").localeCompare(a.time||""));if(L.length){const l=lessonById(L[0].id);const prev=D.lessons[l.id]?JSON.parse(JSON.stringify(D.lessons[l.id])):null;l.status="gehalten";saveLesson(l);const c=cardStats(st);
+  toast(`Stunde vom ${WDS[wd(l.date)]} ${fmtDs(l.date)} abgestrichen · noch ${Math.max(c.remaining,0)} auf der Karte`,"Rückgängig",()=>{if(prev)D.lessons[l.id]=prev;else delete D.lessons[l.id];changed();toast("Rückgängig gemacht.")});return}}
+ const n=new Date(),id="p_"+newId();saveLesson({id,sid,date:t,time:String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0"),dur:st.dur,kind:"einzel",status:"gehalten",note:""});
+ const c=cardStats(st);toast(`${st.name}: Stunde heute abgestrichen · noch ${Math.max(c.remaining,0)} auf der Karte`,"Rückgängig",()=>{delete D.lessons[id];changed();toast("Rückgängig gemacht.")})}
+function unpunchCard(sid){const st=D.students[sid];if(!st)return;const t=todayStr();
+ const l=(lessonIdx().bySid[sid]||[]).filter(x=>x.status==="gehalten"&&x.date<=t).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time))[0];
+ if(!l){toast("Diese Stunde wurde nicht in der App abgehakt. Ändern über „Ändern“ bei der Karte.");return}
+ confirmSheet("Letzte Stunde zurücknehmen?",`Die Stunde vom <b>${WDS[wd(l.date)]} ${fmtD(l.date)}</b> wird wieder auf „offen“ gesetzt und nicht mehr von der Karte abgezogen.${hasNotes(l)?" Deine Notizen bleiben erhalten.":""}`,"Zurücknehmen",()=>{if(l.id.startsWith("p_")&&!hasNotes(l))delete D.lessons[l.id];else{const c=Object.assign({},l,{status:"offen"});saveLesson(c)}changed();toast("Zurückgenommen.")},false)}
 function markHeld(id){const l=lessonById(id);if(!l)return;const prev=D.lessons[id]?JSON.parse(JSON.stringify(D.lessons[id])):null;l.status="gehalten";saveLesson(l);const st=D.students[l.sid];
  let msg=`${st?st.name:"Stunde"}: gehalten`;if(st&&st.billing==="zehner"){const c=cardStats(st);msg+=c.none?" · keine Karte!":` · noch ${Math.max(c.remaining,0)} auf der Karte`}
  toast(msg,"Rückgängig",()=>{if(prev)D.lessons[id]=prev;else delete D.lessons[id];changed();toast("Rückgängig gemacht.")})}
@@ -1024,7 +1033,7 @@ function openLesson(id,preset){
   <div class="field"><label for="l_note">📝 Sonstiges</label><textarea class="inp" id="l_note" name="note" rows="2" placeholder="Alles andere">${h(l.note||"")}</textarea></div>
   <div class="field"><span class="lbl">${icon("bell")} Fürs nächste Mal</span><div id="lrems">${rems()}</div>
    <div style="display:flex;gap:8px"><input class="inp" name="newRem" placeholder="z. B. Noten mitbringen, Aufnahme machen" autocomplete="off"><button type="button" class="btn" data-sact="addRem">Merken</button></div></div>
-  <details class="more"><summary>Termin verschieben</summary><div class="three"><div class="field"><label for="l_d">Datum</label><input class="inp" id="l_d" type="date" name="date" value="${h(l.date)}"></div><div class="field"><label for="l_t">Uhrzeit</label><input class="inp" id="l_t" type="time" name="time" value="${h(l.time||"")}"></div><div class="field"><label for="l_du">Dauer</label><select class="inp" id="l_du" name="dur">${[30,45,60].map(d=>`<option value="${d}" ${+(l.dur||st.dur)===d?"selected":""}>${d} Min.</option>`).join("")}</select></div></div></details>
+  <details class="more"><summary>Termin verschieben</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px"><button type="button" class="btn sm" data-sact="shift" data-n="7">1 Woche später</button><button type="button" class="btn sm" data-sact="shift" data-n="14">2 Wochen später</button></div><div class="three"><div class="field"><label for="l_d">Datum</label><input class="inp" id="l_d" type="date" name="date" value="${h(l.date)}"></div><div class="field"><label for="l_t">Uhrzeit</label><input class="inp" id="l_t" type="time" name="time" value="${h(l.time||"")}"></div><div class="field"><label for="l_du">Dauer</label><select class="inp" id="l_du" name="dur">${[30,45,60].map(d=>`<option value="${d}" ${+(l.dur||st.dur)===d?"selected":""}>${d} Min.</option>`).join("")}</select></div></div></details>
   <div class="foot">${l.kind!=="regel"&&D.lessons[l.id]?`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Termin löschen</button>`:`<button type="button" class="btn ghost" data-sact="toStudent">Zum Schüler</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div>
   </form>`,p=>{
   const f=$("#lf",p);applyWhen(f);
@@ -1041,6 +1050,7 @@ function openLesson(id,preset){
   p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;const a=b.dataset.sact;
    if(a==="close")closeSheet();
    else if(a==="addRem")addRem();
+   else if(a==="shift"){const inp=$("#l_d",p);inp.value=addDays(l.date,+b.dataset.n);const clash=lessonsOn(inp.value).filter(x=>x.sid===l.sid&&x.id!==l.id&&x.status!=="abgesagt");toast(clash.length?`Achtung: ${st.name} hat am ${fmtD(inp.value)} schon eine Stunde um ${clash[0].time} Uhr. Bitte eine andere Uhrzeit wählen, dann „Speichern“.`:`Neues Datum: ${WDS[wd(inp.value)]} ${fmtD(inp.value)} – zum Übernehmen „Speichern“ tippen`);if(clash.length)$("#l_t",p).focus()}
    else if(a==="samePieces"){$("#l_pc",p).value=prevL.pieces;b.remove()}
    else if(a==="remDone"){const r=D.reminders[b.dataset.id];if(r){r.done=true;r.doneAt=todayStr();changed();$("#lrems",p).innerHTML=rems()}}
    else if(a==="toStudent"){closeSheet();go("student",st.id)}
@@ -1217,7 +1227,7 @@ const ACT={
  nav:d=>go(d.view),
  student:d=>go("student",d.id),
  back:()=>go(S.from&&S.from!=="student"?S.from:"students"),
- diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
+ punch:d=>punchCard(d.sid),unpunch:d=>unpunchCard(d.sid),diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
  payPrev:()=>{S.payMonth=addMonths(S.payMonth,-1);render()},payNext:()=>{S.payMonth=addMonths(S.payMonth,1);render()},
  lesson:d=>openLesson(d.id),
  held:d=>markHeld(d.id),
