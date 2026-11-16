@@ -419,7 +419,7 @@ function cardAlloc(st){
  const start=cards[0].bought||"2000-01-01";
  let held=(lessonIdx().bySid[st.id]||[]).filter(l=>l.status==="gehalten"&&l.date>=start).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
  const neg=cards.reduce((s,c)=>s+Math.max(0,-(+c.preUsed||0)),0);held=held.slice(Math.min(neg,held.length));
- const ev=[];for(const c of cards){for(let i=0;i<Math.max(0,+c.preUsed||0);i++)ev.push({pre:true,date:c.bought||"",k:0})}
+ const ev=[];for(const c of cards){for(let i=0;i<Math.max(0,+c.preUsed||0);i++)ev.push({pre:true,cid:c.id,date:c.bought||"",k:0})}
  for(const l of held)ev.push({pre:false,date:l.date,time:l.time,id:l.id,k:1});
  ev.sort((a,b)=>a.date.localeCompare(b.date)||a.k-b.k);
  let i=0;for(const c of cards){const size=+c.size||10;while(res[c.id].length<size&&i<ev.length)res[c.id].push(ev[i++])}
@@ -551,17 +551,18 @@ VIEWS.plan=()=>{
  return out;
 };
 VIEWS.students=()=>{
- const all=students();const cnt=f=>f==="alle"?all.length:f==="ms"?all.filter(s=>s.billing==="ms"&&s.status==="aktiv").length:all.filter(s=>s.status===f).length;
- const F=[["aktiv","Aktiv"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiv"],["ms","Musikschule"],["alle","Alle"]];
+ const all=students();const cnt=f=>all.filter(s=>inFilter(s,f)).length;
+ const F=[["aktiv","Aktiv"],["privat","Privat"],["zehner","Zehnerkarte"],["ms","Musikschule"],["pausiert","Pausiert"],["warteliste","Warteliste"],["archiviert","Archiv"],["alle","Alle"]];
  return`<header class="phead"><div><p class="eyebrow">${cnt("aktiv")} aktive Schüler</p><h1>Schüler</h1></div><button class="btn primary" data-act="newStudent">${icon("plus")} Neuer Schüler</button></header>
  ${topBanners()}
  <div class="filters" role="group" aria-label="Filter">${F.map(([k,l])=>`<button class="fchip" data-act="filter" data-f="${k}" aria-pressed="${S.filter===k}">${l}<span class="n">${cnt(k)}</span></button>`).join("")}</div>
  <input class="search" id="search" type="search" placeholder="Name suchen …" value="${h(S.search)}" autocomplete="off" aria-label="Name suchen">
  <div id="slist">${studentList()}</div>`;
 };
+function inFilter(s,f){if(f==="alle")return true;if(f==="ms")return s.billing==="ms"&&s.status==="aktiv";if(f==="privat")return s.billing!=="ms"&&s.status==="aktiv";if(f==="zehner")return s.billing==="zehner"&&s.status==="aktiv";return s.status===f}
 function studentList(){
  const q=S.search.trim().toLowerCase();
- let L=students().filter(s=>S.filter==="alle"?true:S.filter==="ms"?(s.billing==="ms"&&s.status==="aktiv"):s.status===S.filter);
+ let L=students().filter(s=>inFilter(s,S.filter));
  if(q){const hit=s=>(s.name+" "+(s.members||[]).join(" ")).toLowerCase().includes(q);const act=L.filter(hit);const rest=students().filter(s=>hit(s)&&!act.includes(s));
   if(!act.length&&!rest.length)return`<div class="card"><p class="none">Niemand gefunden.</p></div>`;
   return (act.length?studentRows(act):"")+(rest.length?`<h2 style="margin:14px 0 8px">In anderen Listen gefunden</h2>${studentRows(rest)}`:"")}
@@ -605,9 +606,9 @@ VIEWS.student=()=>{
    const c=cs.current||cs.last;const size=+c.size||10;const used=cs.current?cs.curUsed:size;const AL=cardAlloc(st);
    body=`<div class="pad" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><div><span class="big">${cs.remaining>0?cs.remaining:0}</span> <span class="muted">${cs.remaining===1?"Stunde":"Stunden"} übrig</span></div><div class="muted">${cs.current?`Aktuelle Karte seit ${fmtD(c.bought)} · gültig bis ${fmtD(cs.expires)}`:"Alle Karten aufgebraucht"}${cs.over?` · ${cs.over} Stunde(n) ohne Karte`:""}</div></div>${AL.over.length?`<p class="cdates" style="color:var(--bad)">Ohne Karte gehalten: ${AL.over.map(e=>e.pre?"vorher":fmtDs(e.date)).join(" · ")}</p>`:""}
     <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>{const e=AL.per[c.id][i];
-     const dot=i===used&&cs.remaining>0?`<button type="button" class="next" data-act="punch" data-sid="${h(st.id)}" aria-label="Eine Stunde abstreichen">${i+1}</button>`:i===used-1?`<button type="button" class="used" data-act="unpunch" data-sid="${h(st.id)}" aria-label="Letzte Stunde zurücknehmen">${i+1}</button>`:`<span class="${i<used?"used":""}">${i+1}</span>`;
+     const dot=i===used&&cs.remaining>0?`<button type="button" class="next" data-act="punch" data-sid="${h(st.id)}" aria-label="Eine Stunde abstreichen">${i+1}</button>`:e?`<button type="button" class="used" data-act="slot" data-sid="${h(st.id)}" data-cid="${h(c.id)}" data-i="${i}" aria-label="Stunde ${i+1} ansehen oder Datum ändern">${i+1}</button>`:`<span>${i+1}</span>`;
      return`<div class="slot">${dot}<small>${e?(e.pre?"vorher":fmtDs(e.date)):""}</small></div>`}).join("")}</div>
-    <p class="muted" style="margin:4px 0 0;font-size:14px">${cs.remaining>0?"Auf den nächsten Punkt tippen = eine Stunde abstreichen. ":""}Abgesagte Stunden werden nie abgezogen, nur gehaltene.</p></div>
+    <p class="muted" style="margin:4px 0 0;font-size:14px">${cs.remaining>0?"Nächsten Punkt antippen = Stunde abstreichen. ":""}Gefärbten Punkt antippen = Datum ändern oder nachtragen. Abgesagte Stunden werden nie abgezogen, nur gehaltene.</p></div>
     <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}${+c.preUsed>0?` · übernommen mit ${c.preUsed} verbrauchten Stunden`:+c.preUsed<0?` · Stand korrigiert`:""}</div>${(()=>{const E=AL.per[c.id]||[];const d=E.filter(e=>!e.pre);return d.length?`<div class="cdates">Gehalten: ${d.map(e=>fmtDs(e.date)).join(" · ")}</div>`:""})()}</div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
   }
   out+=block("Zehnerkarte",`<div class="card">${body}</div>`,`<button class="btn ghost sm" data-act="newCard" data-sid="${h(st.id)}">${icon("plus")} Neue Karte</button>`);
@@ -1001,6 +1002,35 @@ function unpunchCard(sid){const st=D.students[sid];if(!st)return;const t=todaySt
  const l=(lessonIdx().bySid[sid]||[]).filter(x=>x.status==="gehalten"&&x.date<=t).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time))[0];
  if(!l){toast("Diese Stunde wurde nicht in der App abgehakt. Ändern über „Ändern“ bei der Karte.");return}
  confirmSheet("Letzte Stunde zurücknehmen?",`Die Stunde vom <b>${WDS[wd(l.date)]} ${fmtD(l.date)}</b> wird wieder auf „offen“ gesetzt und nicht mehr von der Karte abgezogen.${hasNotes(l)?" Deine Notizen bleiben erhalten.":""}`,"Zurücknehmen",()=>{if(l.id.startsWith("p_")&&!hasNotes(l))delete D.lessons[l.id];else{const c=Object.assign({},l,{status:"offen"});saveLesson(c)}changed();toast("Zurückgenommen.")},false)}
+function openSlot(sid,cid,i){const st=D.students[sid];if(!st)return;const AL=cardAlloc(st);const e=(AL.per[cid]||[])[i];if(!e)return;
+ const card=(st.cards||[]).find(c=>c.id===cid)||{};const t=todayStr();const L=e.pre?null:lessonById(e.id);const editable=L&&!L.id.startsWith("r_");
+ const minD=e.pre?((st.cards||[]).find(c=>c.id===e.cid)||card).bought||"":"";
+ openSheet(`${sheetHead(`Stunde ${i+1} der Karte`,h(st.name))}
+  <form id="sf2" novalidate style="display:flex;flex-direction:column;gap:14px">
+  ${e.pre?`<p style="margin:0">Diese Stunde hast du als Zahl übernommen („vorher“). Trag hier ein, <b>an welchem Tag</b> sie gehalten wurde.</p>
+   <div class="field"><label for="s_d">Gehalten am</label><input class="inp" id="s_d" type="date" name="date" ${minD?`min="${h(minD)}"`:""} max="${t}" style="max-width:220px"></div>`
+  :`<div class="field"><label for="s_d">Gehalten am</label><input class="inp" id="s_d" type="date" name="date" value="${h(e.date)}" max="${t}" style="max-width:220px" ${editable?"":"disabled"}>${editable?"":`<p class="hint">Das ist eine feste Stunde aus dem Stundenplan. Stimmt das Datum nicht, nimm sie hier zurück und trag die richtige Stunde nach.</p>`}</div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-sact="notes">Notizen dieser Stunde</button><button type="button" class="btn sm danger" data-sact="undo">Stunde zurücknehmen</button></div>`}
+  <div class="foot"><div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button>${e.pre||editable?`<button type="submit" class="btn primary">Speichern</button>`:""}</div></div></form>`,p=>{
+  const f=$("#sf2",p);
+  p.onclick=ev=>{const b=ev.target.closest("[data-sact]");if(!b)return;const a=b.dataset.sact;
+   if(a==="close")closeSheet();
+   if(a==="notes"){closeSheet();setTimeout(()=>openLesson(e.id),50)}
+   if(a==="undo"){closeSheet();setTimeout(()=>confirmSheet("Stunde zurücknehmen?",`Die Stunde vom <b>${WDS[wd(e.date)]} ${fmtD(e.date)}</b> wird wieder auf „offen“ gesetzt und nicht mehr von der Karte abgezogen.${hasNotes(L)?" Deine Notizen bleiben erhalten.":""}`,"Zurücknehmen",()=>{if(L.id.startsWith("p_")&&!hasNotes(L))delete D.lessons[L.id];else saveLesson(Object.assign({},L,{status:"offen"}));changed();toast("Zurückgenommen.")},false),50)}};
+  f.onsubmit=ev=>{ev.preventDefault();const d=$("#s_d",p).value;
+   if(!d){toast("Bitte ein Datum wählen.");return}
+   if(d>t){toast("Das Datum liegt in der Zukunft.");return}
+   if(e.pre&&minD&&d<minD){toast(`Die Karte wurde erst am ${fmtD(minD)} gekauft. Bitte ein späteres Datum wählen.`);return}
+   const same=(lessonIdx().bySid[sid]||[]).filter(x=>x.date===d&&x.status==="gehalten"&&(!L||x.id!==L.id));
+   if(same.length){toast(`Am ${fmtD(d)} ist schon eine gehaltene Stunde eingetragen.`);return}
+   if(e.pre){const oc=(st.cards||[]).find(c=>c.id===e.cid);if(!oc)return;oc.preUsed=Math.max(0,(+oc.preUsed||0)-1);
+    const open=lessonsOn(d).filter(x=>x.sid===sid&&x.status==="offen")[0];
+    if(open){const l=lessonById(open.id);l.status="gehalten";D.lessons[l.id]=cleanLesson(l)}
+    else{const sl=(st.slots||[]).find(x=>+x.wd===wd(d)&&x.time);const id="p_"+newId();D.lessons[id]=cleanLesson({id,sid,date:d,time:sl?sl.time:"",dur:st.dur,kind:"einzel",status:"gehalten",note:""})}}
+   else{L.date=d;D.lessons[L.id]=cleanLesson(L)}
+   changed();closeSheet();toast(`Gespeichert: ${WDS[wd(d)]} ${fmtD(d)}`)};
+ });
+}
 function markHeld(id){const l=lessonById(id);if(!l)return;const prev=D.lessons[id]?JSON.parse(JSON.stringify(D.lessons[id])):null;l.status="gehalten";saveLesson(l);const st=D.students[l.sid];
  let msg=`${st?st.name:"Stunde"}: gehalten`;if(st&&st.billing==="zehner"){const c=cardStats(st);msg+=c.none?" · keine Karte!":` · noch ${Math.max(c.remaining,0)} auf der Karte`}
  toast(msg,"Rückgängig",()=>{if(prev)D.lessons[id]=prev;else delete D.lessons[id];changed();toast("Rückgängig gemacht.")})}
@@ -1241,7 +1271,7 @@ const ACT={
  nav:d=>go(d.view),
  student:d=>go("student",d.id),
  back:()=>go(S.from&&S.from!=="student"?S.from:"students"),
- punch:d=>punchCard(d.sid),unpunch:d=>unpunchCard(d.sid),diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
+ punch:d=>punchCard(d.sid),slot:d=>openSlot(d.sid,d.cid,+d.i),unpunch:d=>unpunchCard(d.sid),diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
  payPrev:()=>{S.payMonth=addMonths(S.payMonth,-1);render()},payNext:()=>{S.payMonth=addMonths(S.payMonth,1);render()},
  lesson:d=>openLesson(d.id),
  held:d=>markHeld(d.id),
