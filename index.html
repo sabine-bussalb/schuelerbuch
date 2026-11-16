@@ -415,7 +415,7 @@ function addStamp(st,date,lid){const cards=sortedCards(st);
  const ex=[...cards.flatMap(cUses),...(st.overUses||[])].find(u=>!u.lid&&u.date===date);if(ex&&lid){ex.lid=lid;ex.auto=true;return}
  const u={date,lid:lid||null,auto:!!lid};
  const c=cards.find(c=>cUses(c).length<cSize(c)&&(!c.bought||!date||c.bought<=date))||cards.find(c=>cUses(c).length<cSize(c)&&!lid);
- if(c){c.uses=cUses(c);c.uses.push(u);c.uses.sort(stampSort)}else{st.overUses=st.overUses||[];st.overUses.push(u)}}
+ if(c){c.uses=cUses(c);c.uses.push(u)}else{st.overUses=st.overUses||[];st.overUses.push(u)}}
 let heldSeen=null;
 function syncCards(){
  const held=new Set();for(const l of Object.values(D.lessons))if(l.status==="gehalten")held.add(l.id);
@@ -426,10 +426,9 @@ function syncCards(){
   for(const c of st.cards||[])c.uses=cUses(c).filter(u=>!u.lid||held.has(u.lid));
   st.overUses=(st.overUses||[]).filter(u=>!u.lid||held.has(u.lid));
   for(const u of [...(st.cards||[]).flatMap(cUses),...st.overUses])if(u.lid&&u.auto){const L=D.lessons[u.lid];if(L&&L.date!==u.date)u.date=L.date}
-  for(const c of st.cards||[])c.uses.sort(stampSort);
   if(heldSeen&&st.billing==="zehner")for(const l of Object.values(D.lessons))if(l.sid===st.id&&l.status==="gehalten"&&!heldSeen.has(l.id)){const linked=[...(st.cards||[]).flatMap(cUses),...st.overUses].some(u=>u.lid===l.id);if(!linked)addStamp(st,l.date,l.id)}
   // Stunden ohne Karte in freie Karten übernehmen
-  for(const c of sortedCards(st))while(st.overUses.length&&cUses(c).length<cSize(c)){c.uses=cUses(c);c.uses.push(st.overUses.shift());c.uses.sort(stampSort)}
+  for(const c of sortedCards(st))while(st.overUses.length&&cUses(c).length<cSize(c)){c.uses=cUses(c);c.uses.push(st.overUses.shift())}
  }
  heldSeen=held;
 }
@@ -623,13 +622,13 @@ VIEWS.student=()=>{
   const cs=cardStats(st);let body="";
   if(cs.none)body=`<p class="none">Noch keine Karte angelegt. Lege die aktuelle Karte an und tippe dann für jede schon gehaltene Stunde auf den nächsten Punkt und trag ihr Datum ein.</p>`;
   else{
-   const c=cs.current||cs.last;const size=cSize(c);const U=cUses(c).slice().sort(stampSort);const used=Math.min(U.length,size);
+   const c=cs.current||cs.last;const size=cSize(c);const U=cUses(c).slice();const used=Math.min(U.length,size);
    body=`<div class="pad" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><div><span class="big">${cs.remaining>0?cs.remaining:0}</span> <span class="muted">${cs.remaining===1?"Stunde":"Stunden"} übrig</span></div><div class="muted">${cs.current?`Aktuelle Karte seit ${fmtD(c.bought)} · gültig bis ${fmtD(cs.expires)}`:"Alle Karten aufgebraucht"}${cs.over?` · ${cs.over} Stunde(n) ohne Karte`:""}</div></div>${(st.overUses||[]).length?`<p class="cdates" style="color:var(--bad)">Ohne Karte gehalten: ${st.overUses.map(e=>e.date?fmtDs(e.date):"ohne Datum").join(" · ")} – wird auf die nächste Karte übernommen.</p>`:""}
     <div class="punch ${cs.remaining<=0?"empty":""}" aria-label="${used} von ${size} Stunden verbraucht">${[...Array(size)].map((_,i)=>{const e=U[i];
      const dot=i===used&&cs.remaining>0?`<button type="button" class="next" data-act="punch" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Eine Stunde abstreichen">${i+1}</button>`:e?`<button type="button" class="used" data-act="slot" data-sid="${h(st.id)}" data-cid="${h(c.id)}" data-i="${i}" aria-label="Stunde ${i+1} ansehen oder Datum ändern">${i+1}</button>`:`<span>${i+1}</span>`;
      return`<div class="slot">${dot}<small>${e?(e.date?fmtDs(e.date):"ohne Datum"):""}</small></div>`}).join("")}</div>
-    <p class="muted" style="margin:4px 0 0;font-size:14px">${cs.remaining>0?"Nächsten Punkt antippen = Stunde mit Datum eintragen. ":""}Gefärbten Punkt antippen = Datum ändern oder Stunde löschen. „Gehalten“ im Stundenplan trägt die Stunde automatisch ein, abgesagte Stunden nie.</p></div>
-    <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}</div>${(()=>{const E=cUses(c).slice().sort(stampSort);return E.length?`<div class="cdates">${E.length}/${cSize(c)} · ${E.map((e,i)=>`<button type="button" class="dlink" data-act="slot" data-sid="${h(st.id)}" data-cid="${h(c.id)}" data-i="${i}">${e.date?fmtDs(e.date):"ohne Datum"}</button>`).join(" · ")}</div>`:""})()}</div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
+    <p class="muted" style="margin:4px 0 0;font-size:14px">${cs.remaining>0?"Nächsten Punkt antippen = heute gehalten. ":""}Gefärbten Punkt antippen = Datum ändern (z. B. zum Nachtragen) oder Stunde löschen. „Gehalten“ im Stundenplan trägt die Stunde automatisch ein, abgesagte Stunden nie.</p></div>
+    <div class="list" style="border-top:1px solid var(--line)">${cs.cards.slice().reverse().map(c=>`<div class="remrow"><button class="check ${c.paid?"on":""}" data-act="cardPaid" data-sid="${h(st.id)}" data-cid="${h(c.id)}" aria-label="Bezahlt">${c.paid?icon("check"):""}</button><div class="grow"><div><b>${c.size||10}er-Karte</b> vom ${fmtD(c.bought)}${c.price!=null?` · ${euro(c.price)}`:""}</div><div class="muted" style="font-size:14px">${c.paid?"bezahlt":"noch nicht bezahlt"}</div>${(()=>{const E=cUses(c).slice();return E.length?`<div class="cdates">${E.length}/${cSize(c)} · ${E.map((e,i)=>`<button type="button" class="dlink" data-act="slot" data-sid="${h(st.id)}" data-cid="${h(c.id)}" data-i="${i}">${e.date?fmtDs(e.date):"ohne Datum"}</button>`).join(" · ")}</div>`:""})()}</div><button class="btn ghost sm" data-act="editCard" data-sid="${h(st.id)}" data-cid="${h(c.id)}">Ändern</button></div>`).join("")}</div>`;
   }
   out+=block("Zehnerkarte",`<div class="card">${body}</div>`,`<button class="btn ghost sm" data-act="newCard" data-sid="${h(st.id)}">${icon("plus")} Neue Karte</button>`);
  }
@@ -1018,12 +1017,17 @@ function stampLessonFor(st,d){// passende Stunde an diesem Tag: offene wird als 
  const h0=L.find(x=>x.status==="gehalten"&&!linked.has(x.id));if(h0)return h0.id;
  const o=L.find(x=>x.status==="offen");if(o){const l=lessonById(o.id);l.status="gehalten";D.lessons[l.id]=cleanLesson(l);heldSeen&&heldSeen.add(l.id);return l.id}
  return null}
-function openStamp(sid,cid,i){const st=D.students[sid];if(!st)return;const card=(st.cards||[]).find(c=>c.id===cid);if(!card)return;
- const U=cUses(card).slice().sort(stampSort);const u=i==null?null:U[i];const isNew=!u;const t=todayStr();
+function quickStamp(sid,cid){const st=D.students[sid];if(!st)return;const card=(st.cards||[]).find(c=>c.id===cid);if(!card)return;const t=todayStr();
+ if([...(st.cards||[]).flatMap(cUses),...(st.overUses||[])].some(u=>u.date===t)){openStamp(sid,cid,null,true);return}
+ const before=JSON.parse(JSON.stringify({cards:st.cards,over:st.overUses||[]}));const L0=lessonsOn(t).filter(x=>x.sid===sid);const statusBefore={};for(const x of L0)statusBefore[x.id]=x.status;const lid=stampLessonFor(st,t);
+ card.uses=cUses(card);card.uses.push({date:t,lid,auto:!!lid});changed();
+ const c2=cardStats(st);toast(`Heute eingetragen · noch ${Math.max(c2.remaining,0)} auf der Karte`,"Rückgängig",()=>{st.cards=before.cards;st.overUses=before.over;if(lid&&statusBefore[lid]&&statusBefore[lid]!=="gehalten"&&D.lessons[lid]){const L=D.lessons[lid];L.status=statusBefore[lid];D.lessons[lid]=cleanLesson(L)}changed();toast("Rückgängig gemacht.")})}
+function openStamp(sid,cid,i,todayTaken){const st=D.students[sid];if(!st)return;const card=(st.cards||[]).find(c=>c.id===cid);if(!card)return;
+ const U=cUses(card).slice();const u=i==null?null:U[i];const isNew=!u;const t=todayStr();
  const nr=isNew?U.length+1:i+1;
  openSheet(`${sheetHead(`Stunde ${nr} von ${cSize(card)}`,`${h(st.name)} · ${cSize(card)}er-Karte vom ${fmtD(card.bought)}`)}
   <form id="stf" novalidate style="display:flex;flex-direction:column;gap:14px">
-  <div class="field"><label for="st_d">Gehalten am</label><input class="inp" id="st_d" type="date" value="${h(isNew?t:(u.date||""))}" max="${t}" style="max-width:220px"></div>
+  <div class="field"><label for="st_d">Gehalten am</label>${todayTaken?`<p class="hint" style="margin:0">Für heute ist schon eine Stunde eingetragen. Wähle das Datum der Stunde, die du nachtragen möchtest.</p>`:""}<input class="inp" id="st_d" type="date" value="${h(isNew?(todayTaken?"":t):(u.date||""))}" max="${t}" style="max-width:220px"></div>
   ${!isNew&&!u.date?`<p class="hint" style="margin:0">Diese Stunde wurde ohne Datum übernommen. Trag das Datum ein, wenn du es weißt.</p>`:""}
   ${!isNew&&u.lid&&D.lessons[u.lid]?`<div><button type="button" class="btn sm" data-sact="notes">Notizen dieser Stunde</button></div>`:""}
   <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Stunde löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
@@ -1039,7 +1043,7 @@ function openStamp(sid,cid,i){const st=D.students[sid];if(!st)return;const card=
    if(d>t){toast("Das Datum liegt in der Zukunft.");return}
    const dup=[...(st.cards||[]).flatMap(cUses),...(st.overUses||[])].some(x=>x!==u&&x.date===d);
    if(dup){toast(`Am ${fmtD(d)} ist schon eine Stunde auf der Karte eingetragen.`);return}
-   if(isNew){const lid=stampLessonFor(st,d);card.uses=cUses(card);card.uses.push({date:d,lid,auto:!!lid});card.uses.sort(stampSort)}
+   if(isNew){const lid=stampLessonFor(st,d);card.uses=cUses(card);card.uses.push({date:d,lid,auto:!!lid})}
    else{u.date=d;u.auto=false;if(!u.lid){const lid=stampLessonFor(st,d);if(lid){u.lid=lid}}}
    changed();closeSheet();const c2=cardStats(st);toast(`${WDS[wd(d)]} ${fmtD(d)} eingetragen · noch ${Math.max(c2.remaining,0)} auf der Karte`)};
  });
@@ -1276,7 +1280,7 @@ const ACT={
  nav:d=>go(d.view),
  student:d=>go("student",d.id),
  back:()=>go(S.from&&S.from!=="student"?S.from:"students"),
- punch:d=>openStamp(d.sid,d.cid,null),slot:d=>openStamp(d.sid,d.cid,+d.i),diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
+ punch:d=>quickStamp(d.sid,d.cid),slot:d=>openStamp(d.sid,d.cid,+d.i),diarySearch:d=>{S.dq=d.q||"";S.dqSid=d.sid;render()},weekPrev:()=>{S.week=addDays(S.week,-7);render()},weekNext:()=>{S.week=addDays(S.week,7);render()},weekToday:()=>{S.week=mondayOf(todayStr());render()},
  payPrev:()=>{S.payMonth=addMonths(S.payMonth,-1);render()},payNext:()=>{S.payMonth=addMonths(S.payMonth,1);render()},
  lesson:d=>openLesson(d.id),
  held:d=>markHeld(d.id),
