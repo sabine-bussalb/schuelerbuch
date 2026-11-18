@@ -15,4 +15,4 @@ Diese Regeln gelten bei jeder Arbeit an der App „Schülerbuch“ – ohne Ausn
    Erinnere vor größeren Änderungen daran, zuerst eine Sicherung der Daten zu machen.
 
 5. **Keine Fachbegriffe.**
-   Die Nutzerin kann nicht programmieren. Erkläre alles in einfacher Sprache, ohne Fachbegriffe.
+   Ich kann nicht programmieren – bitte erkläre alles in einfacher Sprache, ohne Fachbegriffe.
