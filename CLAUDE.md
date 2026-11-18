@@ -16,3 +16,6 @@ Diese Regeln gelten bei jeder Arbeit an der App „Schülerbuch“ – ohne Ausn
 
 5. **Keine Fachbegriffe.**
    Ich kann nicht programmieren – bitte erkläre alles in einfacher Sprache, ohne Fachbegriffe.
+
+6. **Duzen.**
+   Bitte sprich mich immer mit „du“ an.
