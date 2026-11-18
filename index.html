@@ -224,9 +224,9 @@ details.more[open] summary{margin-bottom:10px}
 .yday.struck{background:var(--bad-soft);border-color:transparent;color:var(--bad);text-decoration:line-through}
 .yday.struck small{color:var(--bad)}
 /* Jahreskalender */
-:root{--ct:#3b78c4;--ct-ink:#fff;--cf:#d4eedc;--cf-ink:#1f6b3c;--ch:#fde3c4;--ch-ink:#a35400;--cs:#1f6b3c;--co:#eef0f3;--co-ink:#9aa1ad}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ct:#4f8ad6;--cf:#1d3a28;--cf-ink:#7fd49c;--ch:#3d2a12;--ch-ink:#f5b263;--cs:#5cc184;--co:#20232b;--co-ink:#6f7684}}
-:root[data-theme="dark"]{--ct:#4f8ad6;--cf:#1d3a28;--cf-ink:#7fd49c;--ch:#3d2a12;--ch-ink:#f5b263;--cs:#5cc184;--co:#20232b;--co-ink:#6f7684}
+:root{--ct:#bcd7f5;--ct-ink:#1d4f8a;--cf:#d4eedc;--cf-ink:#1f6b3c;--ch:#fde3c4;--ch-ink:#a35400;--cs:#1f6b3c;--co:#eef0f3;--co-ink:#9aa1ad}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ct:#27456b;--ct-ink:#b3d3f7;--cf:#1d3a28;--cf-ink:#7fd49c;--ch:#3d2a12;--ch-ink:#f5b263;--cs:#5cc184;--co:#20232b;--co-ink:#6f7684}}
+:root[data-theme="dark"]{--ct:#27456b;--ct-ink:#b3d3f7;--cf:#1d3a28;--cf-ink:#7fd49c;--ch:#3d2a12;--ch-ink:#f5b263;--cs:#5cc184;--co:#20232b;--co-ink:#6f7684}
 .yscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .yr{display:grid;grid-template-columns:26px repeat(12,minmax(0,1fr));gap:2px;min-width:640px;font-variant-numeric:tabular-nums}
 .yr .mh{font-weight:700;font-size:13px;text-align:center;padding:2px 0 4px;color:var(--ink)}.yr .rn{font-size:11px;color:var(--muted);text-align:right;padding-right:4px;align-self:center}
@@ -236,7 +236,7 @@ details.more[open] summary{margin-bottom:10px}
 .cd.none{visibility:hidden}
 .linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline}
 .clegend{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:15px}.clegend span{display:inline-flex;align-items:center;gap:6px}.clegend .cd{display:inline-block;width:26px;height:20px;padding:0;cursor:default}
-.paper.land{max-width:1040px;padding:26px 28px;gap:10px;--ink:#1b2130;--muted:#5d6576;--ct:#3b78c4;--ct-ink:#fff;--cf:#d4eedc;--cf-ink:#1f6b3c;--ch:#fde3c4;--ch-ink:#a35400;--cs:#1f6b3c;--co:#eef0f3;--co-ink:#9aa1ad}
+.paper.land{max-width:1040px;padding:26px 28px;gap:10px;--ink:#1b2130;--muted:#5d6576;--ct:#bcd7f5;--ct-ink:#1d4f8a;--cf:#d4eedc;--cf-ink:#1f6b3c;--ch:#fde3c4;--ch-ink:#a35400;--cs:#1f6b3c;--co:#eef0f3;--co-ink:#9aa1ad}
 .paper.land .ptitle{font-size:26px}.paper.land .clegend{font-size:12.5px;color:#1b2130}.paper.land .clegend .cd{width:20px;height:14px}
 .paper.land .yr{gap:1.5px}.paper.land .cd{font-size:10.5px;padding:1px 3px;border-radius:3px;cursor:default}.paper.land .cd small{font-size:9px}.paper.land .yr .mh{font-size:11px}.paper.land .yr .rn{font-size:9.5px}
 .pfoot{display:flex;justify-content:space-between;font-size:11px;color:#5d6576;margin-top:4px}
@@ -885,7 +885,7 @@ VIEWS.yearcalprint=()=>{
 function yearCalPdf(){withPdf(()=>{
  const y=S.planYear,pr=D.settings.profile||{};const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
  const W=297,M=12,ACC=[123,45,91],INK=[27,33,48],MUT=[93,101,118];
- const COL={teach:[[59,120,196],[255,255,255]],fer:[[212,238,220],[31,107,60]],hol:[[253,227,196],[163,84,0]],struck:[[212,238,220],[31,107,60]],off:[[238,240,243],[154,161,173]]};const PINK=[31,107,60];
+ const COL={teach:[[188,215,245],[29,79,138]],fer:[[212,238,220],[31,107,60]],hol:[[253,227,196],[163,84,0]],struck:[[212,238,220],[31,107,60]],off:[[238,240,243],[154,161,173]]};const PINK=[31,107,60];
  doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...ACC);doc.text("GESANGSUNTERRICHT",M,13,{charSpace:.6});
  doc.setFont("times","bold");doc.setFontSize(20);doc.setTextColor(...INK);doc.text(`Jahreskalender ${y}`,M,21);
  const snd=[pr.name,pr.contact].filter(Boolean).join("\n");if(snd){doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...MUT);doc.text(doc.splitTextToSize(snd,70),W-M,11,{align:"right"})}
