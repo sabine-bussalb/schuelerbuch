@@ -109,7 +109,7 @@ img.av{object-fit:cover;display:block;background:var(--line)}
 .day.today .dhead h3{color:var(--accent)}
 .day.today .dhead h3::after{content:"heute";font-size:12px;font-weight:700;background:var(--accent);color:var(--accent-ink);border-radius:99px;padding:3px 8px;margin-left:8px;vertical-align:3px}
 .freebar{background:repeating-linear-gradient(135deg,var(--bg) 0 8px,var(--surface) 8px 16px);border:1px dashed var(--line);border-radius:var(--r);padding:10px 14px;color:var(--muted);font-weight:600}
-.erow{display:flex;gap:12px;align-items:center;padding:11px 14px;cursor:pointer}
+.erow{display:flex;gap:12px;align-items:center;padding:11px 14px;cursor:pointer}.cstack{display:flex;flex-direction:column;gap:12px}.cgroup{overflow:hidden}.people{padding:0 14px 10px 68px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px}.plbl{color:var(--muted);margin-right:2px}.pchip{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-weight:600;font-size:13px}.probes{border-top:1px solid var(--line);background:color-mix(in srgb,var(--accent-soft) 35%,transparent)}.phead2{display:flex;justify-content:space-between;align-items:center;padding:8px 14px 4px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}.erow.nested{padding-left:40px}.erow.nested .ebadge{width:34px;height:34px;border-radius:10px}.pdone summary{padding:6px 14px 10px 40px;color:var(--muted);font-size:14px;cursor:pointer}@media(max-width:600px){.people{padding-left:14px}.erow.nested{padding-left:22px}}
 .ebadge{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
 .erow .meta{color:var(--muted);font-size:15px}
 /* Schülerliste */
@@ -488,12 +488,12 @@ function lessonRow(l,showDate){
   <div class="lright">${right}</div></div>`;
 }
 const EVT={konzert:"Konzert",probe:"Probe",vorspiel:"Vorspiel",musikschule:"Musikschule",sonstiges:"Termin"};
-function eventRow(e,showDate=true){
- const n=(e.sids||[]).filter(id=>D.students[id]).length;
- return`<div class="erow" data-act="event" data-id="${h(e.id)}" role="button" tabindex="0">
+function eventRow(e,showDate=true,nested=false){
+ const n=(e.sids||[]).filter(id=>D.students[id]).length;const par=!nested&&e.parent&&D.events[e.parent];
+ return`<div class="erow${nested?" nested":""}" data-act="event" data-id="${h(e.id)}" role="button" tabindex="0">
   <div class="ebadge">${icon(e.type==="musikschule"?"school":e.type==="probe"?"note":"star")}</div>
   <div style="flex:1;min-width:0"><div class="lname">${h(e.title||EVT[e.type])}</div>
-  <div class="meta">${EVT[e.type]||"Termin"}${showDate?` · ${WDS[wd(e.date)]} ${fmtD(e.date)}`:""}${e.time?` · ${h(e.time)} Uhr`:""}${e.place?` · ${h(e.place)}`:""}${n?` · ${n} Schüler`:""}</div></div></div>`;
+  <div class="meta">${EVT[e.type]||"Termin"}${par?` für ${h(par.title||"Konzert")}`:""}${showDate?` · ${WDS[wd(e.date)]} ${fmtD(e.date)}`:""}${e.time?` · ${h(e.time)} Uhr`:""}${e.place?` · ${h(e.place)}`:""}${n?` · ${n} Schüler`:""}</div></div></div>`;
 }
 const block=(title,body,action="")=>`<section class="block"><div class="bhead"><h2>${title}</h2>${action}</div>${body}</section>`;
 
@@ -673,13 +673,25 @@ VIEWS.ms=()=>{
  ${block("Diese Woche",`<div class="card list">${week.length?week.map(l=>lessonRow(l,true)).join(""):`<p class="none">Diese Woche keine Musikschul-Stunden.</p>`}</div>`)}
  ${block("Schüler",`<div class="card list">${ms.length?ms.map(s=>`<div class="srow" data-act="student" data-id="${h(s.id)}" role="button" tabindex="0">${avatar(s)}<div class="grow"><div class="lname">${h(s.name)}</div><div class="sub">${slotText(s)||"kein fester Termin"} · ${s.dur}′</div></div>${icon("right")}</div>`).join(""):`<p class="none">Noch niemand. Beim Schüler unter „Abrechnung“ die Option „Musikschule“ wählen.</p>`}</div>`)}`;
 };
+const evSort=(a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||""));
+const evPeople=e=>(e.sids||[]).map(id=>D.students[id]).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,"de"));
+function concertCard(c,t){
+ const pr=Object.values(D.events).filter(e=>e.parent===c.id).sort(evSort);const P=evPeople(c);
+ const up=pr.filter(e=>e.date>=t),done=pr.filter(e=>e.date<t);
+ return`<div class="card cgroup">${eventRow(c)}
+  ${P.length?`<div class="people"><span class="plbl">Dabei (${P.length}):</span> ${P.map(s=>`<span class="pchip">${h(s.name)}</span>`).join("")}</div>`:""}
+  <div class="probes"><div class="phead2"><span>Proben${pr.length?` · ${up.length} kommend${done.length?`, ${done.length} vorbei`:""}`:""}</span><button class="btn ghost sm" data-act="newProbe" data-id="${h(c.id)}">${icon("plus")} Probe</button></div>
+   ${up.map(e=>eventRow(e,true,true)).join("")}${done.length?`<details class="pdone"><summary>${done.length} vergangene Probe${done.length===1?"":"n"}</summary>${done.slice().reverse().map(e=>eventRow(e,true,true)).join("")}</details>`:""}${!pr.length?`<p class="none" style="padding:4px 14px 10px">Noch keine Proben eingetragen.</p>`:""}</div></div>`;
+}
 VIEWS.events=()=>{
- const t=todayStr();const ev=Object.values(D.events).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
- const up=ev.filter(e=>e.date>=t),past=ev.filter(e=>e.date<t).reverse();
- return`<header class="phead"><div><p class="eyebrow">Konzerte, Proben, Vorspiele und andere Termine</p><h1>Konzerte & Proben</h1></div><button class="btn primary" data-act="newEvent" data-type="konzert">${icon("plus")} Neuer Termin</button></header>
+ const t=todayStr();const all=Object.values(D.events).sort(evSort);
+ const top=all.filter(e=>!(e.type==="probe"&&e.parent&&D.events[e.parent]));
+ const up=top.filter(e=>e.date>=t),past=top.filter(e=>e.date<t).reverse();
+ const card=e=>e.type==="konzert"?concertCard(e,t):`<div class="card cgroup">${eventRow(e)}${evPeople(e).length?`<div class="people"><span class="plbl">Dabei (${evPeople(e).length}):</span> ${evPeople(e).map(s=>`<span class="pchip">${h(s.name)}</span>`).join("")}</div>`:""}</div>`;
+ return`<header class="phead"><div><p class="eyebrow">Konzerte mit ihren Proben, Vorspiele und andere Termine</p><h1>Konzerte & Proben</h1></div><button class="btn primary" data-act="newEvent" data-type="konzert">${icon("plus")} Neues Konzert</button></header>
  ${topBanners()}
- ${block("Kommend",`<div class="card list">${up.length?up.map(e=>eventRow(e)).join(""):`<p class="none">Noch nichts geplant.</p>`}</div>`)}
- ${past.length?block("Vergangen",`<div class="card list">${past.slice(0,S.showPastEv?999:5).map(e=>eventRow(e)).join("")}${past.length>5&&!S.showPastEv?`<p class="none"><button class="btn ghost sm" data-act="pastEv">Alle ${past.length} anzeigen</button></p>`:""}</div>`):""}`;
+ ${block("Kommend",up.length?`<div class="cstack">${up.map(card).join("")}</div>`:`<div class="card"><p class="none">Noch nichts geplant. Leg zuerst das Konzert an, dann darunter die Proben.</p></div>`,`<button class="btn ghost sm" data-act="newEvent" data-type="sonstiges">${icon("plus")} Anderer Termin</button>`)}
+ ${past.length?block("Vergangen",`<div class="cstack">${past.slice(0,S.showPastEv?999:5).map(card).join("")}</div>${past.length>5&&!S.showPastEv?`<p class="none"><button class="btn ghost sm" data-act="pastEv">Alle ${past.length} anzeigen</button></p>`:""}`):""}`;
 };
 VIEWS.settings=()=>{
  const st=D.settings;const free=(st.free||[]).slice().sort((a,b)=>(a.from||"").localeCompare(b.from||""));
@@ -1186,27 +1198,31 @@ function openReminder(sid){
  });
 }
 /* ----- Konzert / Termin ----- */
-function openEvent(id,type,date){
- const isNew=!id||!D.events[id];
- const ev=isNew?{id:newId(),title:"",type:type||"konzert",date:date||todayStr(),time:"",place:"",sids:[],note:""}:JSON.parse(JSON.stringify(D.events[id]));
+function openEvent(id,type,date,parentId){
+ const isNew=!id||!D.events[id];const par0=parentId&&D.events[parentId];
+ const ev=isNew?{id:newId(),title:par0?"Probe":"",type:type||"konzert",date:date||todayStr(),time:par0?(par0.time||""):"",place:par0?(par0.place||""):"",sids:par0?(par0.sids||[]).slice():[],note:"",parent:par0?par0.id:null}:JSON.parse(JSON.stringify(D.events[id]));
+ const concerts=Object.values(D.events).filter(e=>e.type==="konzert"&&e.id!==ev.id).sort((a,b)=>{const t=todayStr();const fa=a.date>=t,fb=b.date>=t;return fa!==fb?(fa?-1:1):(fa?a.date.localeCompare(b.date):b.date.localeCompare(a.date))});
  const L=students().filter(s=>s.status==="aktiv"||(ev.sids||[]).includes(s.id));
- openSheet(`${sheetHead(isNew?"Neuer Termin":"Termin bearbeiten")}
+ openSheet(`${sheetHead(isNew?(par0?"Neue Probe":type==="konzert"?"Neues Konzert":"Neuer Termin"):"Termin bearbeiten",par0?`für ${h(par0.title||"Konzert")}`:"")}
   <form id="ef" novalidate style="display:flex;flex-direction:column;gap:16px">
   <div class="field"><label for="e_t">Titel</label><input class="inp" id="e_t" name="title" value="${h(ev.title)}" placeholder="z. B. Schülerkonzert im Advent" autocomplete="off"></div>
   <div class="field"><span class="lbl">Art</span>${seg("type",[["konzert","Konzert"],["probe","Probe"],["vorspiel","Vorspiel"],["musikschule","Musikschule"],["sonstiges","Sonstiges"]],ev.type)}</div>
+  <div class="field" data-when="type=probe"><label for="e_par">Gehört zu Konzert</label><select class="inp" id="e_par" name="parent"><option value="">– kein Konzert –</option>${concerts.map(c=>`<option value="${h(c.id)}" ${ev.parent===c.id?"selected":""}>${h(c.title||"Konzert")} · ${fmtD(c.date)}</option>`).join("")}</select></div>
   <div class="two"><div class="field"><label for="e_d">Datum</label><input class="inp" id="e_d" type="date" name="date" value="${h(ev.date)}"></div><div class="field"><label for="e_ti">Uhrzeit</label><input class="inp" id="e_ti" type="time" name="time" value="${h(ev.time||"")}"></div></div>
   <div class="field" style="margin-top:-6px"><div id="eextra" style="display:flex;flex-direction:column;gap:8px"></div><div><button type="button" class="btn sm" data-sact="addRow">${icon("plus")} Weiteres Datum${isNew?"":" (als neuer Termin)"}</button></div><p class="hint" id="eexhint" hidden>Für jedes weitere Datum wird ein eigener Termin mit gleichem Titel, Ort, Mitwirkenden und Notizen angelegt. Danach kannst du jeden einzeln ändern.</p></div>
   <div class="field"><label for="e_p">Ort</label><input class="inp" id="e_p" name="place" value="${h(ev.place||"")}" autocomplete="off"></div>
-  <div class="field"><span class="lbl">Wer singt mit?</span>${L.length?`<div class="plist">${L.map(s=>`<label class="cbline"><input type="checkbox" name="p_${h(s.id)}" ${(ev.sids||[]).includes(s.id)?"checked":""}> ${h(s.name)}</label>`).join("")}</div>`:`<p class="hint">Noch keine aktiven Schüler.</p>`}</div>
+  <div class="field"><span class="lbl">Wer singt mit?</span><div id="e_sum" class="people" style="padding:0"></div>${L.length?`<div class="plist">${L.map(s=>`<label class="cbline"><input type="checkbox" name="p_${h(s.id)}" ${(ev.sids||[]).includes(s.id)?"checked":""}> ${h(s.name)}</label>`).join("")}</div>`:`<p class="hint">Noch keine aktiven Schüler.</p>`}</div>
   <div class="field"><label for="e_n">Notizen</label><textarea class="inp" id="e_n" name="note" placeholder="Programm, Probe, Mitbringen …">${h(ev.note||"")}</textarea></div>
   <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
   const f=$("#ef",p);
+  const sum=()=>{const v=formVals(f);const N=L.filter(s=>v["p_"+s.id]).map(s=>s.name).sort((a,b)=>a.localeCompare(b,"de"));$("#e_sum",p).innerHTML=N.length?`<span class="plbl">Dabei (${N.length}):</span> ${N.map(n=>`<span class="pchip">${h(n)}</span>`).join("")}`:`<span class="plbl">Noch niemand angehakt.</span>`};
+  sum();applyWhen(f);f.addEventListener("change",()=>{sum();applyWhen(f)});
   p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();
    if(b.dataset.sact==="addRow"){const rows=$$(".apptrow",p);const ld=rows.length?$('[data-k="d"]',rows[rows.length-1]).value:$("#e_d",p).value;const lt=rows.length?$('[data-k="t"]',rows[rows.length-1]).value:$("#e_ti",p).value;$("#eextra",p).insertAdjacentHTML("beforeend",apptRow(ld?addDays(ld,7):"",lt||""));$("#eexhint",p).hidden=false}
    if(b.dataset.sact==="delRow")b.closest(".apptrow").remove();
-   if(b.dataset.sact==="del")confirmSheet("Termin löschen?",`„${h(ev.title||EVT[ev.type])}“ wird entfernt.`,"Löschen",()=>{delete D.events[ev.id];changed()})};
+   if(b.dataset.sact==="del")confirmSheet("Termin löschen?",`„${h(ev.title||EVT[ev.type])}“ wird entfernt.${Object.values(D.events).some(x=>x.parent===ev.id)?" Die zugehörigen Proben bleiben erhalten und stehen dann ohne Konzert da.":""}`,"Löschen",()=>{delete D.events[ev.id];for(const x of Object.values(D.events))if(x.parent===ev.id)x.parent=null;changed()})};
   f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.date){toast("Bitte ein Datum eintragen.");return}
-   ev.title=v.title.trim()||EVT[v.type];ev.type=v.type;ev.date=v.date;ev.time=v.time;ev.place=v.place.trim();ev.note=v.note.trim();ev.sids=Object.keys(v).filter(k=>k.startsWith("p_")&&v[k]).map(k=>k.slice(2));
+   ev.title=v.title.trim()||EVT[v.type];ev.type=v.type;ev.date=v.date;ev.time=v.time;ev.place=v.place.trim();ev.note=v.note.trim();ev.sids=Object.keys(v).filter(k=>k.startsWith("p_")&&v[k]).map(k=>k.slice(2));ev.parent=v.type==="probe"&&v.parent?v.parent:null;
    const R=$$(".apptrow",p).map(r=>({d:$('[data-k="d"]',r).value,t:$('[data-k="t"]',r).value})).filter(r=>r.d);
    D.events[ev.id]=ev;for(const r of R){const c=JSON.parse(JSON.stringify(ev));c.id=newId();c.date=r.d;c.time=r.t||"";D.events[c.id]=c}
    changed();closeSheet();toast(R.length?`${R.length+1} Termine gespeichert.`:"Gespeichert.")};
@@ -1313,7 +1329,7 @@ const ACT={
  remToggle:d=>{const r=D.reminders[d.id];if(r){r.done=!r.done;r.doneAt=r.done?todayStr():null;changed();if(r.done)toast("Erledigt.","Rückgängig",()=>{r.done=false;r.doneAt=null;changed()})}},
  remDel:d=>{const r=D.reminders[d.id];if(!r)return;delete D.reminders[d.id];changed();toast("Erinnerung gelöscht.","Rückgängig",()=>{D.reminders[r.id]=r;changed()})},
  addRem:d=>openReminder(d.sid||null),
- newEvent:d=>openEvent(null,d.type,d.date),event:d=>openEvent(d.id),
+ newEvent:d=>openEvent(null,d.type,d.date),newProbe:d=>{const c=D.events[d.id];const t=todayStr();const last=Object.values(D.events).filter(e=>e.parent===d.id).sort(evSort).pop();openEvent(null,"probe",last&&last.date>=t?addDays(last.date,7):t,d.id)},event:d=>openEvent(d.id),
  histAll:()=>{S.histAll=true;render()},pastEv:()=>{S.showPastEv=true;render()},
  backup:()=>exportBackup(),import:()=>$("#importFile").click(),
  sample:()=>loadSample(),removeSample:()=>confirmSheet("Beispielschüler entfernen?","Alle mit „Beispiel:“ markierten Schüler und ihre Stunden, Erinnerungen und Termine werden entfernt. Deine echten Schüler bleiben.","Entfernen",removeSample),
