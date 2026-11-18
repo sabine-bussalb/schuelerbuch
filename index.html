@@ -223,6 +223,14 @@ details.more[open] summary{margin-bottom:10px}
 .yday.sugg{border:2px dashed var(--accent)}
 .yday.struck{background:var(--bad-soft);border-color:transparent;color:var(--bad);text-decoration:line-through}
 .yday.struck small{color:var(--bad)}
+/* Jahreskalender */
+.ycal{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.ymon{padding:12px 12px 10px}.ymon h3{margin:0 0 8px;font-size:16px}
+.ygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.ygrid .wh{font-size:11px;font-weight:700;color:var(--muted);padding-bottom:2px}
+.cd{border:0;font:inherit;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;border-radius:7px;padding:5px 0;background:none;color:var(--muted);cursor:pointer;min-width:0}
+.cd.teach{background:var(--accent);color:var(--bg)}.cd.fer{background:var(--good-soft);color:var(--good)}.cd.hol{background:var(--warn-soft);color:var(--warn)}.cd.struck{background:var(--bad-soft);color:var(--bad);text-decoration:line-through;text-decoration-thickness:2px;box-shadow:inset 0 0 0 1.5px var(--bad)}.cd.off{opacity:.6}.cd.today{outline:2px solid var(--ink);outline-offset:-2px}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline}.clegend{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:15px}.clegend span{display:inline-flex;align-items:center;gap:6px}.clegend .cd{display:inline-block;width:26px;padding:3px 0;cursor:default}
 /* Bedingungen (Papier) */
 .paper{background:#fffdfb;color:#1b2130;border-radius:6px;box-shadow:var(--shadow);padding:36px 40px;max-width:760px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 .ptop{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}
@@ -729,6 +737,7 @@ VIEWS.more=()=>{
  ${topBanners()}
  <div class="card list">
   ${card("year","cal",`Jahresplan ${y}`,open?`Noch ${open} Tag${open===1?"":"e"} zu streichen, damit jeder Wochentag ${D.settings.yearTarget} Stunden hat`:`Alle Wochentage haben ${D.settings.yearTarget} Stunden`)}
+  ${card("yearcal","cal",`Jahreskalender ${y}`,"Unterricht, Ferien, Feiertage und freie Tage auf einen Blick")}
   ${card("terms","text",`Unterrichtsbedingungen ${y}`,"Ansehen, als PDF drucken oder an Schüler schicken")}
   ${card("stats","euro",`Jahresübersicht ${S.statYear}`,"Einnahmen, Stunden und Schüler im Wirtschaftsjahr")}
   ${card("settings","sliders","Einstellungen & Sicherung","Ferien, Preise, Bankverbindung, Datensicherung")}
@@ -750,7 +759,7 @@ VIEWS.year=()=>{
  ${topBanners()}
  <div class="card pad" style="display:flex;flex-direction:column;gap:10px"><p style="margin:0">Ferien und Feiertage sind schon herausgerechnet. <b>Tippe einen Tag an, um ihn zu streichen</b> – gestrichene Tage sind für alle Schüler unterrichtsfrei und verschwinden aus dem Stundenplan. Nochmal tippen holt den Tag zurück.</p>
   <p class="muted" style="margin:0;font-size:15px">Gestrichelt umrandet: Vorschläge (Brückentage, Fasching).</p>
-  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="nav" data-view="freelist">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
+  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="nav" data-view="yearcal">${icon("cal")} Jahreskalender ansehen</button><button class="btn" data-act="nav" data-view="freelist">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
  for(const w of W){
   const s=yearStat(y,w);
   const chip=s.need>0?`<span class="chip warn">noch ${s.need} streichen</span>`:s.need===0?`<span class="chip good">${icon("check")} ${target} Stunden</span>`:`<span class="chip bad">${-s.need} zu wenig</span>`;
@@ -827,6 +836,45 @@ VIEWS.freelist=()=>{
   <section class="tsec"><h3>Zusätzliche unterrichtsfreie Tage</h3>${M.extra.length?rows(M.extra):`<p>Keine.</p>`}</section>
  </article>`;
 };
+
+function calKind(d){
+ const hol=holidays(+d.slice(0,4))[d];if(hol)return["hol",hol];
+ for(const f of D.settings.free||[])if(f.from&&f.to&&d>=f.from&&d<=f.to)return["fer",f.name||"Ferien"];
+ if(!(D.settings.days||[]).includes(wd(d)))return["off","Kein Unterrichtstag"];
+ if(D.settings.struck&&D.settings.struck[d])return["struck","Unterrichtsfreier Tag (Jahresplan)"];
+ return["teach","Unterricht"];
+}
+const CAL_LEGEND=[["teach","Unterricht"],["fer","Ferien"],["hol","Feiertag"],["struck","Unterrichtsfreier Tag"],["off","Kein Unterrichtstag"]];
+function calMonth(y,m){const first=`${y}-${String(m+1).padStart(2,"0")}-01`;const out=[];for(let i=1;i<wd(first);i++)out.push(null);let d=first;while(+d.slice(5,7)===m+1){out.push(d);d=addDays(d,1)}return out}
+VIEWS.yearcal=()=>{
+ const y=S.planYear,t=todayStr();let cnt={teach:0,fer:0,hol:0,struck:0};
+ const months=MON.map((mn,m)=>`<div class="card ymon"><h3>${mn}</h3><div class="ygrid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>`<span class="wh">${x}</span>`).join("")}${calMonth(y,m).map(d=>{if(!d)return"<span></span>";const[k,txt]=calKind(d);if(k==="teach"||k==="struck"||(wd(d)<=5&&(k==="fer"||k==="hol")))cnt[k]++;return`<button type="button" class="cd ${k}${d===t?" today":""}" data-act="calDay" data-date="${d}" aria-label="${fmtD(d)}: ${h(txt)}">${+d.slice(8)}</button>`}).join("")}</div></div>`).join("");
+ return`<div><button class="btn ghost" data-act="nav" data-view="more">${icon("left")} Mehr</button></div>
+ <header class="phead"><div><p class="eyebrow">Unterricht, Ferien, Feiertage und freie Tage</p><h1>Jahreskalender ${y}</h1></div>
+  <div class="row-btns"><div class="weeknav"><button class="btn" data-act="yearPrev" aria-label="Voriges Jahr">${icon("left")}</button><span class="title" style="min-width:70px">${y}</span><button class="btn" data-act="yearNext" aria-label="Nächstes Jahr">${icon("right")}</button></div><button class="btn primary" data-act="yearCalPdf">${icon("save")} Als PDF teilen / drucken</button></div></header>
+ ${topBanners()}
+ <div class="card pad clegend">${CAL_LEGEND.map(([k,l])=>`<span><i class="cd ${k}">1</i>${l}</span>`).join("")}</div>
+ <p class="muted" style="margin:0;font-size:15px">${cnt.teach} Unterrichtstage. Tippe einen Tag an, um zu sehen, was an dem Tag ist. Ändern kannst du die Tage im <button type="button" class="linkbtn" data-act="nav" data-view="year">Jahresplan</button> und die Ferien unter <button type="button" class="linkbtn" data-act="nav" data-view="settings">Einstellungen</button>.</p>
+ <div class="ycal">${months}</div>`;
+};
+function yearCalPdf(){withPdf(()=>{
+ const y=S.planYear,pr=D.settings.profile||{},P=pdfDoc(),doc=P.doc;
+ P.kicker("Gesangsunterricht");P.title(`Jahreskalender ${y}`,[pr.name,pr.contact].filter(Boolean).join("\n"));
+ const COL={teach:[[123,45,91],[255,255,255]],fer:[[227,243,233],[43,122,75]],hol:[[252,241,220],[154,91,6]],struck:[[252,232,230],[176,39,29]],off:[null,[150,155,165]]};
+ // Legende
+ let x=22,ly=P.y-2;doc.setFontSize(9);
+ for(const[k,l]of CAL_LEGEND){const[bg,fg]=COL[k];if(bg){doc.setFillColor(...bg);doc.roundedRect(x,ly-3.2,5,4.2,.8,.8,"F");if(k==="struck"){doc.setDrawColor(...fg);doc.setLineWidth(.3);doc.roundedRect(x,ly-3.2,5,4.2,.8,.8,"S")}}else{doc.setDrawColor(210,214,222);doc.setLineWidth(.2);doc.roundedRect(x,ly-3.2,5,4.2,.8,.8,"S")}doc.setFont("helvetica","normal");doc.setTextColor(27,33,48);doc.text(l,x+6.5,ly);x+=6.5+doc.getTextWidth(l)+7}
+ const top=ly+7,gx=6,mw=(166-2*gx)/3,cw=mw/7,ch=5.6,mh=8+7*ch+4;
+ MON.forEach((mn,m)=>{const mx=22+(m%3)*(mw+gx),my=top+Math.floor(m/3)*mh;
+  doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(123,45,91);doc.text(mn,mx,my+3);
+  doc.setFontSize(7.5);doc.setTextColor(93,101,118);["Mo","Di","Mi","Do","Fr","Sa","So"].forEach((w,i)=>doc.text(w,mx+i*cw+cw/2,my+8.5,{align:"center"}));
+  calMonth(y,m).forEach((d,i)=>{if(!d)return;const cx=mx+(i%7)*cw,cy=my+10+Math.floor(i/7)*ch;const[k]=calKind(d);const[bg,fg]=COL[k];
+   if(bg){doc.setFillColor(...bg);doc.roundedRect(cx+.4,cy,cw-.8,ch-.7,.8,.8,"F")}if(k==="struck"){doc.setDrawColor(...fg);doc.setLineWidth(.3);doc.roundedRect(cx+.4,cy,cw-.8,ch-.7,.8,.8,"S")}
+   doc.setFont("helvetica",k==="off"?"normal":"bold");doc.setFontSize(8.5);doc.setTextColor(...fg);const n=String(+d.slice(8));doc.text(n,cx+cw/2,cy+3.6,{align:"center"});
+   if(k==="struck"){const tw=doc.getTextWidth(n);doc.setDrawColor(...fg);doc.setLineWidth(.3);doc.line(cx+cw/2-tw/2-.4,cy+2.4,cx+cw/2+tw/2+.4,cy+2.4)}})});
+ P.footer(`Jahreskalender ${y}`+(pr.name?" · "+pr.name:""));
+ sharePdf(doc,`Jahreskalender-${y}.pdf`);
+})}
 
 /* ================= PDF ================= */
 let pdfLoading=null;
@@ -949,13 +997,13 @@ function doRender(){
  if(ae&&$("#main").contains(ae)&&ae.matches("input,textarea,select")){pending=true;return}
  const sy=window.scrollY;
  $("#main").innerHTML=(VIEWS[S.view]||VIEWS.home)();
- const cur=S.view==="student"?"students":["settings","year","terms","stats","freelist"].includes(S.view)?"more":S.view;
+ const cur=S.view==="student"?"students":["settings","year","terms","stats","freelist","yearcal"].includes(S.view)?"more":S.view;
  $("#tabs").innerHTML=TABS.map(([v,l,i])=>`<button class="tab" data-act="nav" data-view="${v}" ${cur===v?'aria-current="page"':""}>${icon(i)}<span class="lbl">${l}</span></button>`).join("");
  if(S.keepScroll){window.scrollTo(0,sy);}
  S.keepScroll=true;
 }
 document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
-function go(view,arg){if(view==="terms"||view==="year"||view==="stats"||view==="freelist")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
+function go(view,arg){if(view==="terms"||view==="year"||view==="stats"||view==="freelist"||view==="yearcal")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
 
 /* ================= Toast ================= */
 let toastT;
@@ -1343,7 +1391,7 @@ const ACT={
  yearPrev:()=>{S.planYear--;render()},yearNext:()=>{S.planYear++;render()},
  autoPlan:()=>autoPlan(),
  resetYear:()=>confirmSheet(`Streichungen ${S.planYear} zurücksetzen?`,"Alle gestrichenen Tage dieses Jahres werden wieder zu Unterrichtstagen.","Zurücksetzen",()=>{for(const d of Object.keys(D.settings.struck))if(d.startsWith(String(S.planYear)))delete D.settings.struck[d];changed()}),
- termsPdf:()=>termsPdf(),freeDaysPdf:()=>freeDaysPdf(),
+ termsPdf:()=>termsPdf(),freeDaysPdf:()=>freeDaysPdf(),yearCalPdf:()=>yearCalPdf(),calDay:d=>{const[,txt]=calKind(d.date);toast(`${WD[wd(d.date)]}, ${fmtD(d.date)}: ${txt}`)},
  reactivate:d=>{const s=D.students[d.id];if(!s)return;if(s.pauseFrom)s.pauses=(s.pauses||[]).concat([{from:s.pauseFrom,to:todayStr()}]);delete s.pauseFrom;s.status="aktiv";delete s.pauseUntil;delete s.pauseNote;changed();toast(`${s.name} ist wieder aktiv.`)},
  statPrev:()=>{S.statYear--;render()},statNext:()=>{S.statYear++;render()},statsPdf:()=>statsPdf(),
  lessonPaid:d=>{const l=D.lessons[d.id];if(l){l.paid=!l.paid;changed()}},
