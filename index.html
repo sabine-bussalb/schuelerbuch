@@ -750,7 +750,7 @@ VIEWS.year=()=>{
  ${topBanners()}
  <div class="card pad" style="display:flex;flex-direction:column;gap:10px"><p style="margin:0">Ferien und Feiertage sind schon herausgerechnet. <b>Tippe einen Tag an, um ihn zu streichen</b> – gestrichene Tage sind für alle Schüler unterrichtsfrei und verschwinden aus dem Stundenplan. Nochmal tippen holt den Tag zurück.</p>
   <p class="muted" style="margin:0;font-size:15px">Gestrichelt umrandet: Vorschläge (Brückentage, Fasching).</p>
-  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="freeDaysPdf">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
+  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="nav" data-view="freelist">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
  for(const w of W){
   const s=yearStat(y,w);
   const chip=s.need>0?`<span class="chip warn">noch ${s.need} streichen</span>`:s.need===0?`<span class="chip good">${icon("check")} ${target} Stunden</span>`:`<span class="chip bad">${-s.need} zu wenig</span>`;
@@ -812,6 +812,22 @@ VIEWS.terms=()=>{
  </article>`;
 };
 
+VIEWS.freelist=()=>{
+ const M=freeDaysModel(S.planYear);
+ const rows=R=>`<dl class="trows">${R.map(([a,b])=>`<dt>${h(a)}</dt><dd>${h(b)}</dd>`).join("")}</dl>`;
+ return`<div><button class="btn ghost" data-act="nav" data-view="year">${icon("left")} Jahresplan</button></div>
+ <header class="phead"><div><p class="eyebrow">Vorschau – so sieht die PDF aus</p><h1>Liste für Schüler</h1></div>
+  <div class="row-btns"><button class="btn primary" data-act="freeDaysPdf">${icon("save")} Als PDF teilen / drucken</button></div></header>
+ ${topBanners()}
+ <article class="paper"><div class="ptop"><div><div class="pkicker">${h(M.kicker)}</div><h2 class="ptitle">${h(M.title)}</h2></div>${M.sender||M.contact?`<div class="psender">${h(M.sender)}${M.contact?`<br><span>${h(M.contact).replace(/\n/g,"<br>")}</span>`:""}</div>`:""}</div>
+  <div class="staff" aria-hidden="true"></div>
+  <section class="tsec"><p>${h(M.intro)}</p></section>
+  ${M.fer.length?`<section class="tsec"><h3>Ferien und freie Zeiten</h3>${rows(M.fer)}</section>`:""}
+  ${M.hol.length?`<section class="tsec"><h3>Feiertage</h3>${rows(M.hol)}</section>`:""}
+  <section class="tsec"><h3>Zusätzliche unterrichtsfreie Tage</h3>${M.extra.length?rows(M.extra):`<p>Keine.</p>`}</section>
+ </article>`;
+};
+
 /* ================= PDF ================= */
 let pdfLoading=null;
 function loadPdfLib(){if(window.jspdf)return Promise.resolve(window.jspdf);if(pdfLoading)return pdfLoading;pdfLoading=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="jspdf.umd.min.js";sc.onload=()=>res(window.jspdf);sc.onerror=()=>{pdfLoading=null;rej(new Error("PDF-Baustein fehlt"))};document.head.appendChild(sc)});return pdfLoading}
@@ -848,19 +864,25 @@ function termsPdf(){withPdf(()=>{
  P.sign(M.personal?M.personal.name:"");P.footer(M.title+(M.sender?" · "+M.sender:""));
  sharePdf(P.doc,`${M.title.replace(/\s+/g,"-")}${M.personal?"-"+M.personal.name.replace(/\s+/g,"-"):""}.pdf`.replace(/[^\wäöüÄÖÜß.\-]/g,""));
 })}
-function freeDaysPdf(){withPdf(()=>{
- const y=S.planYear,pr=D.settings.profile||{},target=+D.settings.yearTarget||36;const P=pdfDoc();
- P.kicker("Gesangsunterricht");P.title(`Unterrichtsfreie Tage ${y}`,[pr.name,pr.contact].filter(Boolean).join("\n"));
- P.p(`Monatlich zahlende Schüler erhalten ${target} Stunden im Jahr. Damit das für jeden Wochentag gleich ist, gibt es neben den Ferien und Feiertagen einige zusätzliche unterrichtsfreie Tage. An diesen Tagen findet kein Unterricht statt.`);P.gap(2);
+function freeDaysModel(y){
+ const pr=D.settings.profile||{},target=+D.settings.yearTarget||36;
  const fer=(D.settings.free||[]).filter(f=>f.from&&f.to&&f.to>=`${y}-01-01`&&f.from<=`${y}-12-31`).sort((a,b)=>a.from.localeCompare(b.from));
- if(fer.length){P.h("Ferien und freie Zeiten");P.rows(fer.map(f=>[f.name||"Unterrichtsfrei",`${fmtD(f.from)} – ${fmtD(f.to)}`]))}
  const hol=Object.entries(holidays(y)).filter(([d])=>wd(d)<=5&&!(D.settings.free||[]).some(f=>d>=f.from&&d<=f.to)).sort();
- if(hol.length){P.h("Feiertage");P.rows(hol.map(([d,n])=>[n,`${WD[wd(d)]}, ${fmtD(d)}`]))}
+ const extra=[];for(const w of (D.settings.days||[]).filter(d=>d<=5)){const st=yearStat(y,w);if(st.struck.length)extra.push([WD[w],st.struck.map(d=>fmtDs(d)).join(", ")])}
+ return{title:`Unterrichtsfreie Tage ${y}`,kicker:"Gesangsunterricht",sender:pr.name||"",contact:pr.contact||"",
+  intro:`Monatlich zahlende Schüler erhalten ${target} Stunden im Jahr. Damit das für jeden Wochentag gleich ist, gibt es neben den Ferien und Feiertagen einige zusätzliche unterrichtsfreie Tage. An diesen Tagen findet kein Unterricht statt.`,
+  fer:fer.map(f=>[f.name||"Unterrichtsfrei",`${fmtD(f.from)} – ${fmtD(f.to)}`]),hol:hol.map(([d,n])=>[n,`${WD[wd(d)]}, ${fmtD(d)}`]),extra};
+}
+function freeDaysPdf(){withPdf(()=>{
+ const y=S.planYear,M=freeDaysModel(y);const P=pdfDoc();
+ P.kicker(M.kicker);P.title(M.title,[M.sender,M.contact].filter(Boolean).join("\n"));
+ P.p(M.intro);P.gap(2);
+ if(M.fer.length){P.h("Ferien und freie Zeiten");P.rows(M.fer)}
+ if(M.hol.length){P.h("Feiertage");P.rows(M.hol)}
  P.h("Zusätzliche unterrichtsfreie Tage");
- const W=(D.settings.days||[]).filter(d=>d<=5);let any=false;
- for(const w of W){const s=yearStat(y,w);if(!s.struck.length)continue;any=true;P.rows([[WD[w],s.struck.map(d=>fmtDs(d)).join(", ")]])}
- if(!any)P.p("Keine.");
- P.footer(`Unterrichtsfreie Tage ${y}`+(pr.name?" · "+pr.name:""));
+ for(const r of M.extra)P.rows([r]);
+ if(!M.extra.length)P.p("Keine.");
+ P.footer(M.title+(M.sender?" · "+M.sender:""));
  sharePdf(P.doc,`Unterrichtsfreie-Tage-${y}.pdf`);
 })}
 
@@ -927,13 +949,13 @@ function doRender(){
  if(ae&&$("#main").contains(ae)&&ae.matches("input,textarea,select")){pending=true;return}
  const sy=window.scrollY;
  $("#main").innerHTML=(VIEWS[S.view]||VIEWS.home)();
- const cur=S.view==="student"?"students":["settings","year","terms","stats"].includes(S.view)?"more":S.view;
+ const cur=S.view==="student"?"students":["settings","year","terms","stats","freelist"].includes(S.view)?"more":S.view;
  $("#tabs").innerHTML=TABS.map(([v,l,i])=>`<button class="tab" data-act="nav" data-view="${v}" ${cur===v?'aria-current="page"':""}>${icon(i)}<span class="lbl">${l}</span></button>`).join("");
  if(S.keepScroll){window.scrollTo(0,sy);}
  S.keepScroll=true;
 }
 document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
-function go(view,arg){if(view==="terms"||view==="year"||view==="stats")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
+function go(view,arg){if(view==="terms"||view==="year"||view==="stats"||view==="freelist")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
 
 /* ================= Toast ================= */
 let toastT;
