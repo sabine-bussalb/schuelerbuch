@@ -164,6 +164,7 @@ nav.tabs .in{display:flex;max-width:960px;width:100%;justify-content:space-aroun
 @media (min-width:700px){#sheet{align-items:center}}
 .panel{background:var(--surface);width:100%;max-width:640px;max-height:92%;overflow:auto;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch}
 @media (min-width:700px){.panel{border-radius:20px;max-height:88%}}
+.panel.wide{max-width:920px}.erow3{display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px}textarea.inp.prog{min-height:240px;font-size:17px;line-height:1.55}@media (max-width:560px){.erow3{grid-template-columns:1fr 1fr}.erow3>.field:last-child{grid-column:1/-1}}
 .panel .ph{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .panel .ph .sub{color:var(--muted);font-size:15px;margin-top:2px}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -749,7 +750,7 @@ VIEWS.year=()=>{
  ${topBanners()}
  <div class="card pad" style="display:flex;flex-direction:column;gap:10px"><p style="margin:0">Ferien und Feiertage sind schon herausgerechnet. <b>Tippe einen Tag an, um ihn zu streichen</b> – gestrichene Tage sind für alle Schüler unterrichtsfrei und verschwinden aus dem Stundenplan. Nochmal tippen holt den Tag zurück.</p>
   <p class="muted" style="margin:0;font-size:15px">Gestrichelt umrandet: Vorschläge (Brückentage, Fasching).</p>
-  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="freeDaysPdf">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
+  <div class="row-btns"><button class="btn primary" data-act="autoPlan">${icon("star")} Vorschlag erstellen</button><button class="btn" data-act="nav" data-view="freelist">${icon("save")} Liste für Schüler (PDF)</button><button class="btn danger" data-act="resetYear">Streichungen ${y} zurücksetzen</button></div></div>`;
  for(const w of W){
   const s=yearStat(y,w);
   const chip=s.need>0?`<span class="chip warn">noch ${s.need} streichen</span>`:s.need===0?`<span class="chip good">${icon("check")} ${target} Stunden</span>`:`<span class="chip bad">${-s.need} zu wenig</span>`;
@@ -811,6 +812,22 @@ VIEWS.terms=()=>{
  </article>`;
 };
 
+VIEWS.freelist=()=>{
+ const M=freeDaysModel(S.planYear);
+ const rows=R=>`<dl class="trows">${R.map(([a,b])=>`<dt>${h(a)}</dt><dd>${h(b)}</dd>`).join("")}</dl>`;
+ return`<div><button class="btn ghost" data-act="nav" data-view="year">${icon("left")} Jahresplan</button></div>
+ <header class="phead"><div><p class="eyebrow">Vorschau – so sieht die PDF aus</p><h1>Liste für Schüler</h1></div>
+  <div class="row-btns"><button class="btn primary" data-act="freeDaysPdf">${icon("save")} Als PDF teilen / drucken</button></div></header>
+ ${topBanners()}
+ <article class="paper"><div class="ptop"><div><div class="pkicker">${h(M.kicker)}</div><h2 class="ptitle">${h(M.title)}</h2></div>${M.sender||M.contact?`<div class="psender">${h(M.sender)}${M.contact?`<br><span>${h(M.contact).replace(/\n/g,"<br>")}</span>`:""}</div>`:""}</div>
+  <div class="staff" aria-hidden="true"></div>
+  <section class="tsec"><p>${h(M.intro)}</p></section>
+  ${M.fer.length?`<section class="tsec"><h3>Ferien und freie Zeiten</h3>${rows(M.fer)}</section>`:""}
+  ${M.hol.length?`<section class="tsec"><h3>Feiertage</h3>${rows(M.hol)}</section>`:""}
+  <section class="tsec"><h3>Zusätzliche unterrichtsfreie Tage</h3>${M.extra.length?rows(M.extra):`<p>Keine.</p>`}</section>
+ </article>`;
+};
+
 /* ================= PDF ================= */
 let pdfLoading=null;
 function loadPdfLib(){if(window.jspdf)return Promise.resolve(window.jspdf);if(pdfLoading)return pdfLoading;pdfLoading=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="jspdf.umd.min.js";sc.onload=()=>res(window.jspdf);sc.onerror=()=>{pdfLoading=null;rej(new Error("PDF-Baustein fehlt"))};document.head.appendChild(sc)});return pdfLoading}
@@ -847,19 +864,25 @@ function termsPdf(){withPdf(()=>{
  P.sign(M.personal?M.personal.name:"");P.footer(M.title+(M.sender?" · "+M.sender:""));
  sharePdf(P.doc,`${M.title.replace(/\s+/g,"-")}${M.personal?"-"+M.personal.name.replace(/\s+/g,"-"):""}.pdf`.replace(/[^\wäöüÄÖÜß.\-]/g,""));
 })}
-function freeDaysPdf(){withPdf(()=>{
- const y=S.planYear,pr=D.settings.profile||{},target=+D.settings.yearTarget||36;const P=pdfDoc();
- P.kicker("Gesangsunterricht");P.title(`Unterrichtsfreie Tage ${y}`,[pr.name,pr.contact].filter(Boolean).join("\n"));
- P.p(`Monatlich zahlende Schüler erhalten ${target} Stunden im Jahr. Damit das für jeden Wochentag gleich ist, gibt es neben den Ferien und Feiertagen einige zusätzliche unterrichtsfreie Tage. An diesen Tagen findet kein Unterricht statt.`);P.gap(2);
+function freeDaysModel(y){
+ const pr=D.settings.profile||{},target=+D.settings.yearTarget||36;
  const fer=(D.settings.free||[]).filter(f=>f.from&&f.to&&f.to>=`${y}-01-01`&&f.from<=`${y}-12-31`).sort((a,b)=>a.from.localeCompare(b.from));
- if(fer.length){P.h("Ferien und freie Zeiten");P.rows(fer.map(f=>[f.name||"Unterrichtsfrei",`${fmtD(f.from)} – ${fmtD(f.to)}`]))}
  const hol=Object.entries(holidays(y)).filter(([d])=>wd(d)<=5&&!(D.settings.free||[]).some(f=>d>=f.from&&d<=f.to)).sort();
- if(hol.length){P.h("Feiertage");P.rows(hol.map(([d,n])=>[n,`${WD[wd(d)]}, ${fmtD(d)}`]))}
+ const extra=[];for(const w of (D.settings.days||[]).filter(d=>d<=5)){const st=yearStat(y,w);if(st.struck.length)extra.push([WD[w],st.struck.map(d=>fmtDs(d)).join(", ")])}
+ return{title:`Unterrichtsfreie Tage ${y}`,kicker:"Gesangsunterricht",sender:pr.name||"",contact:pr.contact||"",
+  intro:`Monatlich zahlende Schüler erhalten ${target} Stunden im Jahr. Damit das für jeden Wochentag gleich ist, gibt es neben den Ferien und Feiertagen einige zusätzliche unterrichtsfreie Tage. An diesen Tagen findet kein Unterricht statt.`,
+  fer:fer.map(f=>[f.name||"Unterrichtsfrei",`${fmtD(f.from)} – ${fmtD(f.to)}`]),hol:hol.map(([d,n])=>[n,`${WD[wd(d)]}, ${fmtD(d)}`]),extra};
+}
+function freeDaysPdf(){withPdf(()=>{
+ const y=S.planYear,M=freeDaysModel(y);const P=pdfDoc();
+ P.kicker(M.kicker);P.title(M.title,[M.sender,M.contact].filter(Boolean).join("\n"));
+ P.p(M.intro);P.gap(2);
+ if(M.fer.length){P.h("Ferien und freie Zeiten");P.rows(M.fer)}
+ if(M.hol.length){P.h("Feiertage");P.rows(M.hol)}
  P.h("Zusätzliche unterrichtsfreie Tage");
- const W=(D.settings.days||[]).filter(d=>d<=5);let any=false;
- for(const w of W){const s=yearStat(y,w);if(!s.struck.length)continue;any=true;P.rows([[WD[w],s.struck.map(d=>fmtDs(d)).join(", ")]])}
- if(!any)P.p("Keine.");
- P.footer(`Unterrichtsfreie Tage ${y}`+(pr.name?" · "+pr.name:""));
+ for(const r of M.extra)P.rows([r]);
+ if(!M.extra.length)P.p("Keine.");
+ P.footer(M.title+(M.sender?" · "+M.sender:""));
  sharePdf(P.doc,`Unterrichtsfreie-Tage-${y}.pdf`);
 })}
 
@@ -926,13 +949,13 @@ function doRender(){
  if(ae&&$("#main").contains(ae)&&ae.matches("input,textarea,select")){pending=true;return}
  const sy=window.scrollY;
  $("#main").innerHTML=(VIEWS[S.view]||VIEWS.home)();
- const cur=S.view==="student"?"students":["settings","year","terms","stats"].includes(S.view)?"more":S.view;
+ const cur=S.view==="student"?"students":["settings","year","terms","stats","freelist"].includes(S.view)?"more":S.view;
  $("#tabs").innerHTML=TABS.map(([v,l,i])=>`<button class="tab" data-act="nav" data-view="${v}" ${cur===v?'aria-current="page"':""}>${icon(i)}<span class="lbl">${l}</span></button>`).join("");
  if(S.keepScroll){window.scrollTo(0,sy);}
  S.keepScroll=true;
 }
 document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
-function go(view,arg){if(view==="terms"||view==="year"||view==="stats")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
+function go(view,arg){if(view==="terms"||view==="year"||view==="stats"||view==="freelist")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
 
 /* ================= Toast ================= */
 let toastT;
@@ -941,7 +964,7 @@ function hideToast(){$("#toast").classList.remove("show")}
 
 /* ================= Sheet (Dialog) ================= */
 let sheetClose=null;
-function openSheet(html,setup){const p=$("#panel");p.innerHTML=html;$("#sheet").classList.add("open");document.body.style.overflow="hidden";p.scrollTop=0;sheetClose=null;if(setup)setup(p);const f=p.querySelector("[autofocus]");if(f&&matchMedia("(pointer:fine)").matches)f.focus()}
+function openSheet(html,setup){const p=$("#panel");p.classList.remove("wide");p.innerHTML=html;$("#sheet").classList.add("open");document.body.style.overflow="hidden";p.scrollTop=0;sheetClose=null;if(setup)setup(p);const f=p.querySelector("[autofocus]");if(f&&matchMedia("(pointer:fine)").matches)f.focus()}
 function closeSheet(){$("#sheet").classList.remove("open");document.body.style.overflow="";$("#panel").innerHTML="";if(sheetClose)sheetClose();sheetClose=null;render()}
 $("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#sheet").classList.contains("open"))closeSheet();if((e.key==="Enter"||e.key===" ")&&e.target.matches('[role="button"][data-act]')){e.preventDefault();e.target.click()}});
@@ -1200,7 +1223,7 @@ function openReminder(sid){
 /* ----- Konzert / Termin ----- */
 function openEvent(id,type,date,parentId){
  const isNew=!id||!D.events[id];const par0=parentId&&D.events[parentId];
- const ev=isNew?{id:newId(),title:par0?"Probe":"",type:type||"konzert",date:date||todayStr(),time:par0?(par0.time||""):"",place:par0?(par0.place||""):"",sids:par0?(par0.sids||[]).slice():[],note:"",parent:par0?par0.id:null}:JSON.parse(JSON.stringify(D.events[id]));
+ const ev=isNew?{id:newId(),title:par0?"Probe":"",type:type||"konzert",date:date||todayStr(),time:par0?(par0.time||""):"",place:par0?(par0.place||""):"",sids:par0?(par0.sids||[]).slice():[],note:"",program:"",parent:par0?par0.id:null}:JSON.parse(JSON.stringify(D.events[id]));
  const concerts=Object.values(D.events).filter(e=>e.type==="konzert"&&e.id!==ev.id).sort((a,b)=>{const t=todayStr();const fa=a.date>=t,fb=b.date>=t;return fa!==fb?(fa?-1:1):(fa?a.date.localeCompare(b.date):b.date.localeCompare(a.date))});
  const L=students().filter(s=>s.status==="aktiv"||(ev.sids||[]).includes(s.id));
  openSheet(`${sheetHead(isNew?(par0?"Neue Probe":type==="konzert"?"Neues Konzert":"Neuer Termin"):"Termin bearbeiten",par0?`für ${h(par0.title||"Konzert")}`:"")}
@@ -1208,13 +1231,13 @@ function openEvent(id,type,date,parentId){
   <div class="field"><label for="e_t">Titel</label><input class="inp" id="e_t" name="title" value="${h(ev.title)}" placeholder="z. B. Schülerkonzert im Advent" autocomplete="off"></div>
   <div class="field"><span class="lbl">Art</span>${seg("type",[["konzert","Konzert"],["probe","Probe"],["vorspiel","Vorspiel"],["musikschule","Musikschule"],["sonstiges","Sonstiges"]],ev.type)}</div>
   <div class="field" data-when="type=probe"><label for="e_par">Gehört zu Konzert</label><select class="inp" id="e_par" name="parent"><option value="">– kein Konzert –</option>${concerts.map(c=>`<option value="${h(c.id)}" ${ev.parent===c.id?"selected":""}>${h(c.title||"Konzert")} · ${fmtD(c.date)}</option>`).join("")}</select></div>
-  <div class="two"><div class="field"><label for="e_d">Datum</label><input class="inp" id="e_d" type="date" name="date" value="${h(ev.date)}"></div><div class="field"><label for="e_ti">Uhrzeit</label><input class="inp" id="e_ti" type="time" name="time" value="${h(ev.time||"")}"></div></div>
+  <div class="erow3"><div class="field"><label for="e_d">Datum</label><input class="inp" id="e_d" type="date" name="date" value="${h(ev.date)}"></div><div class="field"><label for="e_ti">Uhrzeit</label><input class="inp" id="e_ti" type="time" name="time" value="${h(ev.time||"")}"></div><div class="field"><label for="e_p">Ort</label><input class="inp" id="e_p" name="place" value="${h(ev.place||"")}" autocomplete="off"></div></div>
   <div class="field" style="margin-top:-6px"><div id="eextra" style="display:flex;flex-direction:column;gap:8px"></div><div><button type="button" class="btn sm" data-sact="addRow">${icon("plus")} Weiteres Datum${isNew?"":" (als neuer Termin)"}</button></div><p class="hint" id="eexhint" hidden>Für jedes weitere Datum wird ein eigener Termin mit gleichem Titel, Ort, Mitwirkenden und Notizen angelegt. Danach kannst du jeden einzeln ändern.</p></div>
-  <div class="field"><label for="e_p">Ort</label><input class="inp" id="e_p" name="place" value="${h(ev.place||"")}" autocomplete="off"></div>
   <div class="field"><span class="lbl">Wer singt mit?</span><div id="e_sum" class="people" style="padding:0"></div>${L.length?`<div class="plist">${L.map(s=>`<label class="cbline"><input type="checkbox" name="p_${h(s.id)}" ${(ev.sids||[]).includes(s.id)?"checked":""}> ${h(s.name)}</label>`).join("")}</div>`:`<p class="hint">Noch keine aktiven Schüler.</p>`}</div>
+  <div class="field" data-when="type=konzert|type=vorspiel"><label for="e_pg">Programm</label><textarea class="inp prog" id="e_pg" name="program" placeholder="Ein Stück pro Zeile, z. B. Name – Stück – Komponist">${h(ev.program||"")}</textarea></div>
   <div class="field"><label for="e_n">Notizen</label><textarea class="inp" id="e_n" name="note" placeholder="Programm, Probe, Mitbringen …">${h(ev.note||"")}</textarea></div>
   <div class="foot">${isNew?"":`<button type="button" class="btn danger" data-sact="del">${icon("trash")} Löschen</button>`}<div class="r"><button type="button" class="btn" data-sact="close">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div></div></form>`,p=>{
-  const f=$("#ef",p);
+  const f=$("#ef",p);p.classList.add("wide");
   const sum=()=>{const v=formVals(f);const N=L.filter(s=>v["p_"+s.id]).map(s=>s.name).sort((a,b)=>a.localeCompare(b,"de"));$("#e_sum",p).innerHTML=N.length?`<span class="plbl">Dabei (${N.length}):</span> ${N.map(n=>`<span class="pchip">${h(n)}</span>`).join("")}`:`<span class="plbl">Noch niemand angehakt.</span>`};
   sum();applyWhen(f);f.addEventListener("change",()=>{sum();applyWhen(f)});
   p.onclick=e=>{const b=e.target.closest("[data-sact]");if(!b)return;if(b.dataset.sact==="close")closeSheet();
@@ -1222,7 +1245,7 @@ function openEvent(id,type,date,parentId){
    if(b.dataset.sact==="delRow")b.closest(".apptrow").remove();
    if(b.dataset.sact==="del")confirmSheet("Termin löschen?",`„${h(ev.title||EVT[ev.type])}“ wird entfernt.${Object.values(D.events).some(x=>x.parent===ev.id)?" Die zugehörigen Proben bleiben erhalten und stehen dann ohne Konzert da.":""}`,"Löschen",()=>{delete D.events[ev.id];for(const x of Object.values(D.events))if(x.parent===ev.id)x.parent=null;changed()})};
   f.onsubmit=e=>{e.preventDefault();const v=formVals(f);if(!v.date){toast("Bitte ein Datum eintragen.");return}
-   ev.title=v.title.trim()||EVT[v.type];ev.type=v.type;ev.date=v.date;ev.time=v.time;ev.place=v.place.trim();ev.note=v.note.trim();ev.sids=Object.keys(v).filter(k=>k.startsWith("p_")&&v[k]).map(k=>k.slice(2));ev.parent=v.type==="probe"&&v.parent?v.parent:null;
+   ev.title=v.title.trim()||EVT[v.type];ev.type=v.type;ev.date=v.date;ev.time=v.time;ev.place=v.place.trim();ev.note=v.note.trim();ev.program=(v.program||"").trim();ev.sids=Object.keys(v).filter(k=>k.startsWith("p_")&&v[k]).map(k=>k.slice(2));ev.parent=v.type==="probe"&&v.parent?v.parent:null;
    const R=$$(".apptrow",p).map(r=>({d:$('[data-k="d"]',r).value,t:$('[data-k="t"]',r).value})).filter(r=>r.d);
    D.events[ev.id]=ev;for(const r of R){const c=JSON.parse(JSON.stringify(ev));c.id=newId();c.date=r.d;c.time=r.t||"";D.events[c.id]=c}
    changed();closeSheet();toast(R.length?`${R.length+1} Termine gespeichert.`:"Gespeichert.")};
