@@ -224,13 +224,22 @@ details.more[open] summary{margin-bottom:10px}
 .yday.struck{background:var(--bad-soft);border-color:transparent;color:var(--bad);text-decoration:line-through}
 .yday.struck small{color:var(--bad)}
 /* Jahreskalender */
-.ycal{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.ymon{padding:12px 12px 10px}.ymon h3{margin:0 0 8px;font-size:16px}
-.ygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
-.ygrid .wh{font-size:11px;font-weight:700;color:var(--muted);padding-bottom:2px}
-.cd{border:0;font:inherit;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;border-radius:7px;padding:5px 0;background:none;color:var(--muted);cursor:pointer;min-width:0}
-.cd.teach{background:var(--accent);color:var(--bg)}.cd.fer{background:var(--good-soft);color:var(--good)}.cd.hol{background:var(--warn-soft);color:var(--warn)}.cd.struck{background:var(--bad-soft);color:var(--bad);text-decoration:line-through;text-decoration-thickness:2px;box-shadow:inset 0 0 0 1.5px var(--bad)}.cd.off{opacity:.6}.cd.today{outline:2px solid var(--ink);outline-offset:-2px}
-.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline}.clegend{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:15px}.clegend span{display:inline-flex;align-items:center;gap:6px}.clegend .cd{display:inline-block;width:26px;padding:3px 0;cursor:default}
+:root{--ct:#3b78c4;--ct-ink:#fff;--cf:#d4eedc;--cf-ink:#1f6b3c;--ch:#fde3c4;--ch-ink:#a35400;--cs:#e05a9b;--co:#eef0f3;--co-ink:#9aa1ad}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ct:#4f8ad6;--cf:#1d3a28;--cf-ink:#7fd49c;--ch:#3d2a12;--ch-ink:#f5b263;--cs:#f07ab5;--co:#20232b;--co-ink:#6f7684}}
+:root[data-theme="dark"]{--ct:#4f8ad6;--cf:#1d3a28;--cf-ink:#7fd49c;--ch:#3d2a12;--ch-ink:#f5b263;--cs:#f07ab5;--co:#20232b;--co-ink:#6f7684}
+.yscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.yr{display:grid;grid-template-columns:26px repeat(12,minmax(0,1fr));gap:2px;min-width:640px;font-variant-numeric:tabular-nums}
+.yr .mh{font-weight:700;font-size:13px;text-align:center;padding:2px 0 4px;color:var(--ink)}.yr .rn{font-size:11px;color:var(--muted);text-align:right;padding-right:4px;align-self:center}
+.cd{border:0;font:inherit;font-size:12.5px;font-weight:600;border-radius:5px;padding:3px 4px;background:none;color:var(--ink);cursor:pointer;min-width:0;display:flex;justify-content:space-between;gap:2px;line-height:1.25;white-space:nowrap;overflow:hidden}
+.cd small{font-size:10.5px;font-weight:500;opacity:.85}
+.cd.teach{background:var(--ct);color:var(--ct-ink)}.cd.fer{background:var(--cf);color:var(--cf-ink)}.cd.hol{background:var(--ch);color:var(--ch-ink)}.cd.struck{background:transparent;box-shadow:inset 0 0 0 2px var(--cs)}.cd.off{background:var(--co);color:var(--co-ink)}.cd.today{outline:2px solid var(--ink);outline-offset:0}
+.cd.none{visibility:hidden}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline}
+.clegend{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:15px}.clegend span{display:inline-flex;align-items:center;gap:6px}.clegend .cd{display:inline-block;width:26px;height:20px;padding:0;cursor:default}
+.paper.land{max-width:1040px;padding:26px 28px;gap:10px;--ink:#1b2130;--muted:#5d6576;--ct:#3b78c4;--ct-ink:#fff;--cf:#d4eedc;--cf-ink:#1f6b3c;--ch:#fde3c4;--ch-ink:#a35400;--cs:#e05a9b;--co:#eef0f3;--co-ink:#9aa1ad}
+.paper.land .ptitle{font-size:26px}.paper.land .clegend{font-size:12.5px;color:#1b2130}.paper.land .clegend .cd{width:20px;height:14px}
+.paper.land .yr{gap:1.5px}.paper.land .cd{font-size:10.5px;padding:1px 3px;border-radius:3px;cursor:default}.paper.land .cd small{font-size:9px}.paper.land .yr .mh{font-size:11px}.paper.land .yr .rn{font-size:9.5px}
+.pfoot{display:flex;justify-content:space-between;font-size:11px;color:#5d6576;margin-top:4px}
 /* Bedingungen (Papier) */
 .paper{background:#fffdfb;color:#1b2130;border-radius:6px;box-shadow:var(--shadow);padding:36px 40px;max-width:760px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 .ptop{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}
@@ -845,34 +854,51 @@ function calKind(d){
  return["teach","Unterricht"];
 }
 const CAL_LEGEND=[["teach","Unterricht"],["fer","Ferien"],["hol","Feiertag"],["struck","Unterrichtsfreier Tag"],["off","Kein Unterrichtstag"]];
-function calMonth(y,m){const first=`${y}-${String(m+1).padStart(2,"0")}-01`;const out=[];for(let i=1;i<wd(first);i++)out.push(null);let d=first;while(+d.slice(5,7)===m+1){out.push(d);d=addDays(d,1)}return out}
+const CMON=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+function calDate(y,m,dd){const d=`${y}-${String(m+1).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;return parse(d).getDate()===dd?d:null}
+function yearGrid(y,cell){let o=`<span></span>${CMON.map(m=>`<span class="mh">${m}</span>`).join("")}`;for(let dd=1;dd<=31;dd++){o+=`<span class="rn">${dd}</span>`;for(let m=0;m<12;m++){const d=calDate(y,m,dd);o+=d?cell(d):`<span class="cd none"></span>`}}return`<div class="yr">${o}</div>`}
+const calLegend=()=>`<div class="clegend">${CAL_LEGEND.map(([k,l])=>`<span><i class="cd ${k}"></i>${l}</span>`).join("")}</div>`;
 VIEWS.yearcal=()=>{
- const y=S.planYear,t=todayStr();let cnt={teach:0,fer:0,hol:0,struck:0};
- const months=MON.map((mn,m)=>`<div class="card ymon"><h3>${mn}</h3><div class="ygrid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>`<span class="wh">${x}</span>`).join("")}${calMonth(y,m).map(d=>{if(!d)return"<span></span>";const[k,txt]=calKind(d);if(k==="teach"||k==="struck"||(wd(d)<=5&&(k==="fer"||k==="hol")))cnt[k]++;return`<button type="button" class="cd ${k}${d===t?" today":""}" data-act="calDay" data-date="${d}" aria-label="${fmtD(d)}: ${h(txt)}">${+d.slice(8)}</button>`}).join("")}</div></div>`).join("");
+ const y=S.planYear,t=todayStr();let teach=0;
+ const grid=yearGrid(y,d=>{const[k,txt]=calKind(d);if(k==="teach")teach++;return`<button type="button" class="cd ${k}${d===t?" today":""}" data-act="calDay" data-date="${d}" aria-label="${fmtD(d)}: ${h(txt)}"><small>${WDS[wd(d)]}</small>${+d.slice(8)}</button>`});
  return`<div><button class="btn ghost" data-act="nav" data-view="more">${icon("left")} Mehr</button></div>
  <header class="phead"><div><p class="eyebrow">Unterricht, Ferien, Feiertage und freie Tage</p><h1>Jahreskalender ${y}</h1></div>
-  <div class="row-btns"><div class="weeknav"><button class="btn" data-act="yearPrev" aria-label="Voriges Jahr">${icon("left")}</button><span class="title" style="min-width:70px">${y}</span><button class="btn" data-act="yearNext" aria-label="Nächstes Jahr">${icon("right")}</button></div><button class="btn primary" data-act="yearCalPdf">${icon("save")} Als PDF teilen / drucken</button></div></header>
+  <div class="row-btns"><div class="weeknav"><button class="btn" data-act="yearPrev" aria-label="Voriges Jahr">${icon("left")}</button><span class="title" style="min-width:70px">${y}</span><button class="btn" data-act="yearNext" aria-label="Nächstes Jahr">${icon("right")}</button></div><button class="btn primary" data-act="nav" data-view="yearcalprint">${icon("save")} PDF-Vorschau</button></div></header>
  ${topBanners()}
- <div class="card pad clegend">${CAL_LEGEND.map(([k,l])=>`<span><i class="cd ${k}">1</i>${l}</span>`).join("")}</div>
- <p class="muted" style="margin:0;font-size:15px">${cnt.teach} Unterrichtstage. Tippe einen Tag an, um zu sehen, was an dem Tag ist. Ändern kannst du die Tage im <button type="button" class="linkbtn" data-act="nav" data-view="year">Jahresplan</button> und die Ferien unter <button type="button" class="linkbtn" data-act="nav" data-view="settings">Einstellungen</button>.</p>
- <div class="ycal">${months}</div>`;
+ <div class="card pad">${calLegend()}</div>
+ <p class="muted" style="margin:0;font-size:15px">${teach} Unterrichtstage. Tippe einen Tag an, um zu sehen, was an dem Tag ist. Ändern kannst du die Tage im <button type="button" class="linkbtn" data-act="nav" data-view="year">Jahresplan</button> und die Ferien unter <button type="button" class="linkbtn" data-act="nav" data-view="settings">Einstellungen</button>.</p>
+ <div class="card pad yscroll">${grid}</div>`;
+};
+VIEWS.yearcalprint=()=>{
+ const y=S.planYear,pr=D.settings.profile||{};
+ return`<div><button class="btn ghost" data-act="nav" data-view="yearcal">${icon("left")} Jahreskalender</button></div>
+ <header class="phead"><div><p class="eyebrow">Vorschau – so sieht die PDF aus (DIN A4 quer)</p><h1>Jahreskalender ${y}</h1></div>
+  <div class="row-btns"><button class="btn primary" data-act="yearCalPdf">${icon("save")} Als PDF teilen / drucken</button></div></header>
+ ${topBanners()}
+ <div class="yscroll"><article class="paper land"><div class="ptop"><div><div class="pkicker">Gesangsunterricht</div><h2 class="ptitle">Jahreskalender ${y}</h2></div>${pr.name||pr.contact?`<div class="psender">${h(pr.name||"")}${pr.contact?`<br><span>${h(pr.contact).replace(/\n/g,"<br>")}</span>`:""}</div>`:""}</div>
+  <div class="staff" aria-hidden="true"></div>
+  ${calLegend()}
+  ${yearGrid(y,d=>{const[k]=calKind(d);return`<span class="cd ${k}"><small>${WDS[wd(d)]}</small>${+d.slice(8)}</span>`})}
+  <div class="pfoot"><span>Jahreskalender ${y}${pr.name?" · "+h(pr.name):""}</span><span>Seite 1 von 1</span></div>
+ </article></div>`;
 };
 function yearCalPdf(){withPdf(()=>{
- const y=S.planYear,pr=D.settings.profile||{},P=pdfDoc(),doc=P.doc;
- P.kicker("Gesangsunterricht");P.title(`Jahreskalender ${y}`,[pr.name,pr.contact].filter(Boolean).join("\n"));
- const COL={teach:[[123,45,91],[255,255,255]],fer:[[227,243,233],[43,122,75]],hol:[[252,241,220],[154,91,6]],struck:[[252,232,230],[176,39,29]],off:[null,[150,155,165]]};
- // Legende
- let x=22,ly=P.y-2;doc.setFontSize(9);
- for(const[k,l]of CAL_LEGEND){const[bg,fg]=COL[k];if(bg){doc.setFillColor(...bg);doc.roundedRect(x,ly-3.2,5,4.2,.8,.8,"F");if(k==="struck"){doc.setDrawColor(...fg);doc.setLineWidth(.3);doc.roundedRect(x,ly-3.2,5,4.2,.8,.8,"S")}}else{doc.setDrawColor(210,214,222);doc.setLineWidth(.2);doc.roundedRect(x,ly-3.2,5,4.2,.8,.8,"S")}doc.setFont("helvetica","normal");doc.setTextColor(27,33,48);doc.text(l,x+6.5,ly);x+=6.5+doc.getTextWidth(l)+7}
- const top=ly+7,gx=6,mw=(166-2*gx)/3,cw=mw/7,ch=5.6,mh=8+7*ch+4;
- MON.forEach((mn,m)=>{const mx=22+(m%3)*(mw+gx),my=top+Math.floor(m/3)*mh;
-  doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(123,45,91);doc.text(mn,mx,my+3);
-  doc.setFontSize(7.5);doc.setTextColor(93,101,118);["Mo","Di","Mi","Do","Fr","Sa","So"].forEach((w,i)=>doc.text(w,mx+i*cw+cw/2,my+8.5,{align:"center"}));
-  calMonth(y,m).forEach((d,i)=>{if(!d)return;const cx=mx+(i%7)*cw,cy=my+10+Math.floor(i/7)*ch;const[k]=calKind(d);const[bg,fg]=COL[k];
-   if(bg){doc.setFillColor(...bg);doc.roundedRect(cx+.4,cy,cw-.8,ch-.7,.8,.8,"F")}if(k==="struck"){doc.setDrawColor(...fg);doc.setLineWidth(.3);doc.roundedRect(cx+.4,cy,cw-.8,ch-.7,.8,.8,"S")}
-   doc.setFont("helvetica",k==="off"?"normal":"bold");doc.setFontSize(8.5);doc.setTextColor(...fg);const n=String(+d.slice(8));doc.text(n,cx+cw/2,cy+3.6,{align:"center"});
-   if(k==="struck"){const tw=doc.getTextWidth(n);doc.setDrawColor(...fg);doc.setLineWidth(.3);doc.line(cx+cw/2-tw/2-.4,cy+2.4,cx+cw/2+tw/2+.4,cy+2.4)}})});
- P.footer(`Jahreskalender ${y}`+(pr.name?" · "+pr.name:""));
+ const y=S.planYear,pr=D.settings.profile||{};const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+ const W=297,M=12,ACC=[123,45,91],INK=[27,33,48],MUT=[93,101,118];
+ const COL={teach:[[59,120,196],[255,255,255]],fer:[[212,238,220],[31,107,60]],hol:[[253,227,196],[163,84,0]],struck:[null,INK],off:[[238,240,243],[154,161,173]]};const PINK=[224,90,155];
+ doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...ACC);doc.text("GESANGSUNTERRICHT",M,13,{charSpace:.6});
+ doc.setFont("times","bold");doc.setFontSize(20);doc.setTextColor(...INK);doc.text(`Jahreskalender ${y}`,M,21);
+ const snd=[pr.name,pr.contact].filter(Boolean).join("\n");if(snd){doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...MUT);doc.text(doc.splitTextToSize(snd,70),W-M,11,{align:"right"})}
+ doc.setDrawColor(...ACC);doc.setLineWidth(.2);for(let i=0;i<5;i++)doc.line(M,24+i*1,W-M,24+i*1);
+ const box=(x,yy,w,hh,k)=>{const[bg]=COL[k];if(bg){doc.setFillColor(...bg);doc.roundedRect(x,yy,w,hh,.7,.7,"F")}if(k==="struck"){doc.setDrawColor(...PINK);doc.setLineWidth(.45);doc.roundedRect(x+.2,yy+.2,w-.4,hh-.4,.7,.7,"S")}};
+ let lx=M;const ly=33;doc.setFontSize(8.5);
+ for(const[k,l]of CAL_LEGEND){box(lx,ly-3,5,3.8,k);doc.setFont("helvetica","normal");doc.setTextColor(...INK);doc.text(l,lx+6.5,ly);lx+=6.5+doc.getTextWidth(l)+7}
+ const top=37,lab=6,cw=(W-2*M-lab)/12,rh=(200-top-6)/32;
+ doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(...INK);CMON.forEach((mn,m)=>doc.text(mn,M+lab+m*cw+cw/2,top+rh*.7,{align:"center"}));
+ for(let dd=1;dd<=31;dd++){const yy=top+dd*rh;doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUT);doc.text(String(dd),M+lab-1.5,yy+rh*.68,{align:"right"});
+  for(let m=0;m<12;m++){const d=calDate(y,m,dd);if(!d)continue;const[k]=calKind(d);const x=M+lab+m*cw;box(x+.3,yy+.15,cw-.6,rh-.3,k);const fg=COL[k][1];
+   doc.setTextColor(...fg);doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.text(WDS[wd(d)],x+1.6,yy+rh*.68);doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.text(String(dd),x+cw-1.6,yy+rh*.68,{align:"right"})}}
+ doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MUT);doc.text(`Jahreskalender ${y}`+(pr.name?" · "+pr.name:""),M,204);doc.text("Seite 1 von 1",W-M,204,{align:"right"});
  sharePdf(doc,`Jahreskalender-${y}.pdf`);
 })}
 
@@ -997,13 +1023,13 @@ function doRender(){
  if(ae&&$("#main").contains(ae)&&ae.matches("input,textarea,select")){pending=true;return}
  const sy=window.scrollY;
  $("#main").innerHTML=(VIEWS[S.view]||VIEWS.home)();
- const cur=S.view==="student"?"students":["settings","year","terms","stats","freelist","yearcal"].includes(S.view)?"more":S.view;
+ const cur=S.view==="student"?"students":["settings","year","terms","stats","freelist","yearcal","yearcalprint"].includes(S.view)?"more":S.view;
  $("#tabs").innerHTML=TABS.map(([v,l,i])=>`<button class="tab" data-act="nav" data-view="${v}" ${cur===v?'aria-current="page"':""}>${icon(i)}<span class="lbl">${l}</span></button>`).join("");
  if(S.keepScroll){window.scrollTo(0,sy);}
  S.keepScroll=true;
 }
 document.addEventListener("focusout",()=>{if(pending){pending=false;setTimeout(()=>{if(!document.activeElement||!$("#main").contains(document.activeElement)||!document.activeElement.matches("input,textarea,select"))render();else pending=true},350)}});
-function go(view,arg){if(view==="terms"||view==="year"||view==="stats"||view==="freelist"||view==="yearcal")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
+function go(view,arg){if(view==="terms"||view==="year"||view==="stats"||view==="freelist"||view==="yearcal"||view==="yearcalprint")loadPdfLib().catch(()=>{});S.from=S.view==="student"?S.from:S.view;S.view=view;S.arg=arg||null;S.keepScroll=false;S.histAll=false;S.dq="";window.scrollTo(0,0);render()}
 
 /* ================= Toast ================= */
 let toastT;
